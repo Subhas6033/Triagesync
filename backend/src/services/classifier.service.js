@@ -32,11 +32,12 @@ export const classifyCategory = (text = "") => {
 export const classifyPriority = (text = "") => {
   const normalized = text.toLowerCase();
 
-  if (
-    ["urgent", "production down", "locked out"].some((keyword) =>
-      normalized.includes(keyword),
-    )
-  ) {
+  const isUrgent =
+    /\burgent\b/.test(normalized) ||
+    /\blocked out\b/.test(normalized) ||
+    /\bproduction\b.{0,40}\bdown\b/.test(normalized);
+
+  if (isUrgent) {
     return "URGENT";
   }
 
