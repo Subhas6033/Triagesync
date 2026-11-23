@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+build/
+out/
+coverage/
+
+# Cache
+.cache/
+.vite/
+.turbo/
+.parcel-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE and editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Testing
+.nyc_output/
+
+# Local databases and backups
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.dump
+
+# Generated files
+*.tsbuildinfo
+
+# Deployment secrets
+.vercel/
+.netlify/

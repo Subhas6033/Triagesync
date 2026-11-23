@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ResourceType {
+  ROOM
+  LAB
+  EQUIPMENT
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      UserRole  @default(USER)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  name        String
+  description String       @db.Text
+  type        ResourceType
+  capacity    Int
+  location    String
+  isActive    Boolean      @default(true)
+  bookings    Booking[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  userId     String
+  resourceId String
+  startTime  DateTime
+  endTime    DateTime
+  purpose    String        @db.Text
+  status     BookingStatus @default(PENDING)
+  ticketId   String?
+  rejectionNote String?    @db.Text
+  user       User          @relation(fields: [userId], references: [id])
+  resource   Resource      @relation(fields: [resourceId], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([resourceId, startTime, endTime])
+  @@index([userId, status, startTime])
+}
