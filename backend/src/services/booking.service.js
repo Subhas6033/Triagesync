@@ -1,4 +1,7 @@
+import mongoose from "mongoose";
+
 import { prisma } from "../config/mysql.js";
+import { findTicketById } from "../repositories/mongodb/ticket.repository.js";
 import ApiError from "../utils/ApiError.js";
 import { createBookingSafely } from "./concurrency.service.js";
 import { lockBooking } from "../repositories/mysql/booking.repository.js";
@@ -64,6 +67,18 @@ const validateBookingTime = (startTime, endTime) => {
 
 export const createBooking = async (userId, data) => {
   const { start, end } = validateBookingTime(data.startTime, data.endTime);
+
+  if (data.ticketId) {
+    if (!mongoose.isValidObjectId(data.ticketId)) {
+      throw new ApiError(404, "Ticket not found", "NOT_FOUND");
+    }
+
+    const ticket = await findTicketById(data.ticketId);
+
+    if (!ticket) {
+      throw new ApiError(404, "Ticket not found", "NOT_FOUND");
+    }
+  }
 
   return createBookingSafely({
     userId,

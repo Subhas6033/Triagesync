@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { prisma } from "../config/mysql.js";
 
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -97,6 +98,17 @@ export const getTicketById = asyncHandler(async (req, res) => {
 export const updateTicket = asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     throw new ApiError(404, "Ticket not found", "NOT_FOUND");
+  }
+
+  if (req.body.assigneeId != null) {
+    const assignee = await prisma.user.findUnique({
+      where: { id: req.body.assigneeId },
+      select: { id: true },
+    });
+
+    if (!assignee) {
+      throw new ApiError(404, "Assignee not found", "NOT_FOUND");
+    }
   }
 
   const actor = req.get("X-Agent")?.trim() || req.user.email;
