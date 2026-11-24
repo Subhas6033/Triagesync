@@ -8,6 +8,7 @@ import { authorizeRoles } from "../middleware/role.middleware.js";
 
 import { getTicketDashboardStats } from "../controllers/ticket.controller.js";
 import resourceRoutes from "./resource.routes.js";
+import bookingRoutes from "./booking.routes.js";
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.get(
 );
 
 router.use("/resources", resourceRoutes);
+router.use("/bookings", bookingRoutes);
 
 export default router;
