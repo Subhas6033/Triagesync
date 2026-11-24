@@ -367,3 +367,47 @@ test("admin can access the booking list", async () => {
 
   assert.equal(response.status, 200);
 });
+
+test("concurrent admin approval and rejection allow only one transition", async () => {
+  const { token: userToken } = await createFreshTestUser();
+
+  const created = await postBooking(
+    userToken,
+    activeResource.id,
+    makeSlot(40),
+  );
+
+  assert.equal(created.status, 201);
+
+  const bookingId = created.data.data.id;
+
+  const [approved, rejected] = await Promise.all([
+    apiRequest(
+      server.baseUrl,
+      adminToken,
+      `/api/bookings/${bookingId}/approve`,
+      { method: "PATCH" },
+    ),
+    apiRequest(
+      server.baseUrl,
+      adminToken,
+      `/api/bookings/${bookingId}/reject`,
+      {
+        method: "PATCH",
+        body: {
+          note: "Resource unavailable for this request",
+        },
+      },
+    ),
+  ]);
+
+  const statuses = [approved.status, rejected.status].sort();
+
+  assert.deepEqual(statuses, [200, 409]);
+
+  const saved = await prisma.booking.findUnique({
+    where: { id: bookingId },
+  });
+
+  assert.ok(["APPROVED", "REJECTED"].includes(saved.status));
+});
