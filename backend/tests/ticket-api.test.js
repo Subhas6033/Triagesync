@@ -120,6 +120,36 @@ test("regular users can access ticket endpoints", async () => {
   assert.equal(response.status, 200);
 });
 
+test("regular users cannot import tickets", async () => {
+  const ticket = sampleTicket("USER-IMPORT-DENIED");
+
+  const response = await request("/api/tickets/import", {
+    token: userToken,
+    method: "POST",
+    body: { tickets: [ticket] },
+  });
+
+  assert.equal(response.status, 403);
+});
+
+test("regular users cannot update tickets", async () => {
+  const ticket = sampleTicket("USER-UPDATE-DENIED");
+
+  await importOne(ticket);
+
+  const saved = await Ticket.findOne({
+    externalId: ticket.externalId,
+  });
+
+  const response = await request(`/api/tickets/${saved._id}`, {
+    token: userToken,
+    method: "PATCH",
+    body: { priority: "URGENT" },
+  });
+
+  assert.equal(response.status, 403);
+});
+
 test("admin can import a ticket and classifier assigns category and priority", async () => {
   const response = await importOne(
     sampleTicket("IMPORT-1", {
