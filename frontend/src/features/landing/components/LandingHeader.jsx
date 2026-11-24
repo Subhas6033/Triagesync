@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Layers3, Menu, X } from "lucide-react";
+import ThemeToggle from "../../../components/common/ThemeToggle";
+import { useAuth } from "../../auth/hooks/useAuth";
 export default function LandingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -12,7 +15,7 @@ export default function LandingHeader() {
             className="flex items-center gap-3"
             aria-label="TriageSync home"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+            <div className="brand-mark landing-brand-mark">
               <Layers3 size={21} />
             </div>
             <span className="text-xl font-bold tracking-tight">
@@ -21,27 +24,21 @@ export default function LandingHeader() {
           </Link>
 
           <div className="hidden items-center gap-9 text-sm font-medium text-slate-600 md:flex">
-            <a href="#features" className="transition hover:text-indigo-600">
-              Features
-            </a>
-            <a href="#workflow" className="transition hover:text-indigo-600">
-              How it works
-            </a>
-            <a href="#about" className="transition hover:text-indigo-600">
-              About
-            </a>
+            <a href="#features">Features</a>
+            <a href="#workflow">How it works</a>
+            <a href="#booking">Booking</a>
+            <a href="#faq">FAQ</a>
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
+            <ThemeToggle />
             <Link
-              to="/login"
+              to={isAuthenticated ? "/dashboard" : "/login"}
               className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
             >
-              Sign in
+              {isAuthenticated ? "Open dashboard" : "Log in"}
             </Link>
-            <Link to="/register" className="btn-primary text-sm">
-              Get started
-            </Link>
+            {!isAuthenticated && <Link to="/register" className="btn-primary text-sm">Get started</Link>}
           </div>
 
           <button
@@ -64,19 +61,22 @@ export default function LandingHeader() {
               <a href="#workflow" onClick={() => setMobileMenuOpen(false)}>
                 How it works
               </a>
+              <a href="#booking" onClick={() => setMobileMenuOpen(false)}>Booking</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
               <a href="#about" onClick={() => setMobileMenuOpen(false)}>
                 About
               </a>
-              <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                Sign in
+              <Link to={isAuthenticated ? "/dashboard" : "/login"} onClick={() => setMobileMenuOpen(false)}>
+                {isAuthenticated ? "Open dashboard" : "Log in"}
               </Link>
-              <Link
+              {!isAuthenticated && <Link
                 to="/register"
                 onClick={() => setMobileMenuOpen(false)}
                 className="btn-primary"
               >
                 Get started
-              </Link>
+              </Link>}
+              <ThemeToggle />
             </div>
           </div>
         )}

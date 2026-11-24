@@ -2,6 +2,7 @@ import { LogOut, Menu, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/hooks/useAuth";
 import Button from "../common/Button";
+import ThemeToggle from "../common/ThemeToggle";
 const titles = {
   "/dashboard": "Overview",
   "/tickets": "Tickets",
@@ -42,6 +43,7 @@ export default function Navbar({ onMenu, expanded, mobile }) {
         </div>
       </div>
       <div className="topbar-actions">
+        <ThemeToggle />
         <Link to="/tickets" className="quick-search">
           <Search size={18} />
           <span>Search tickets</span>

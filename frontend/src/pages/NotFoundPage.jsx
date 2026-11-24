@@ -4,13 +4,13 @@ import EmptyState from "../components/common/EmptyState";
 export default function NotFoundPage() {
   const { isAuthenticated } = useAuth();
   return (
-    <main className="auth-layout">
-      <section className="surface auth-panel">
+    <main className="error-page">
+      <section className="error-panel">
+        <span className="error-code">404</span>
+        <p className="eyebrow">Wrong turn</p>
         <h1>Page not found</h1>
-        <EmptyState
-          title="This address does not exist"
-          description="Check the URL or return to your workspace."
-        >
+        <p className="muted-text">This address doesn’t match a page in TriageSync.</p>
+        <EmptyState title="Your workspace is still here" description="Return to a familiar starting point.">
           <Link
             className="btn-primary"
             to={isAuthenticated ? "/dashboard" : "/"}

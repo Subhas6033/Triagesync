@@ -33,6 +33,10 @@ export default function TicketDetails({ ticket, events }) {
           <div className="ticket-content">
             {ticket.body || "No description was provided."}
           </div>
+          <div className="ticket-classification">
+            {ticket.isHumanOverride && <Badge value="Human override" tone="green" />}
+            {ticket.autoCategory && <span>Auto: {ticket.autoCategory.replaceAll("_", " ")}</span>}
+          </div>
           <dl className="ticket-meta-grid">
             {[
               ["Category", ticket.category || "Uncategorized"],

@@ -100,7 +100,7 @@ async function setup(role = "USER") {
     if (path === "/auth/register")
       return send({ user: { id: "u1", name: body.name } }, 201);
     if (path === "/auth/login") {
-      if (body.password === "wrong")
+      if (body.password === "Wrong1234")
         return send({ error: { message: "Invalid credentials" } }, 401);
       return send({
         token: `test-${role}`,
@@ -120,7 +120,7 @@ async function setup(role = "USER") {
           createdAt: new Date().toISOString(),
         })),
       );
-      return send({ imported: body.tickets.length });
+      return send({ importedCount: body.tickets.length, updatedCount: 0, skippedOverrideCount: 0 });
     }
     if (path === "/tickets") {
       if (failTickets)
@@ -292,7 +292,7 @@ try {
     .click();
   await page.getByText("Account created. Please sign in.").waitFor();
   await page.getByLabel("Email address").fill("member@example.test");
-  await page.getByLabel("Password", { exact: true }).fill("wrong");
+  await page.getByLabel("Password", { exact: true }).fill("Wrong1234");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByText("Invalid credentials", { exact: true }).waitFor();
   record("registration and failed-login feedback");
@@ -359,10 +359,7 @@ try {
         ]),
       ),
     });
-  await page
-    .getByRole("status")
-    .filter({ hasText: "Changes saved successfully." })
-    .waitFor();
+  await page.getByRole("status").filter({ hasText: "Feed import complete: 1 imported" }).waitFor();
   assert.equal(user.tickets.length, 19);
   record("ticket import validates files and submits the existing payload");
   await visit("/resources");
@@ -430,12 +427,13 @@ try {
   await cancelDialog
     .getByRole("button", { name: "Cancel booking", exact: true })
     .click();
-  await page.getByText("CANCELLED", { exact: true }).first().waitFor();
+  await page.getByText("Cancelled", { exact: true }).first().waitFor();
   record(
     "booking cancellation confirmation, keyboard focus, and Escape handling",
   );
   await visit("/admin/resources");
-  await page.waitForURL("**/dashboard");
+  await page.waitForURL("**/forbidden");
+  await page.getByRole("heading", { name: "You don’t have access to this area." }).waitFor();
   assert.equal(
     await page
       .getByRole("link", { name: "Manage resources", exact: true })
@@ -443,7 +441,7 @@ try {
     0,
   );
   assert.ok(!user.requests.some((request) => request.path === "/admin/stats"));
-  record("member admin-route protection and role-based navigation");
+  record("member admin-route protection, forbidden page, and role-based navigation");
   user.failTickets(true);
   await visit("/tickets");
   await page
@@ -564,42 +562,40 @@ try {
     "/admin/bookings",
     "/admin/resources",
     "/missing-page",
+    "/forbidden",
   ];
-  for (const width of [1440, 768, 390, 320]) {
-    await admin.page.setViewportSize({ width, height: 1000 });
-    for (const route of routes) {
-      await admin.visit(route);
-      const overflow = await admin.page.evaluate(
-        () => document.documentElement.scrollWidth > window.innerWidth + 1,
-      );
-      assert.equal(
-        overflow,
-        false,
-        `Horizontal overflow at ${route}, ${width}px`,
-      );
-      assert.equal(
-        await admin.page.getByRole("heading", { level: 1 }).count(),
-        1,
-        `Missing/duplicate heading at ${route}`,
-      );
-    }
+  for (const theme of ["light", "dark"]) {
     await admin.visit("/dashboard");
-    await admin.page.screenshot({
-      path: `/tmp/triagesync-qa/dashboard-${width}.png`,
-      fullPage: true,
-    });
-    if (width <= 720) {
-      await admin.page.getByRole("button", { name: "Open navigation" }).click();
-      await admin.page
-        .getByRole("dialog")
-        .getByRole("link", { name: "Manage resources", exact: true })
-        .click();
-      assert.equal(await admin.page.getByRole("dialog").count(), 0);
+    const currentTheme = await admin.page.evaluate(() => document.documentElement.dataset.theme);
+    if (currentTheme !== theme) {
+      await admin.page.locator(".app-topbar").getByRole("button", { name: `Switch to ${theme} theme` }).click();
+    }
+    for (const width of [1440, 1280, 768, 390, 375, 320]) {
+      await admin.page.setViewportSize({ width, height: 1000 });
+      for (const route of routes) {
+        await admin.visit(route);
+        const overflow = await admin.page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth + 1,
+        );
+        assert.equal(overflow, false, `Horizontal overflow at ${route}, ${width}px, ${theme} theme`);
+        assert.equal(await admin.page.getByRole("heading", { level: 1 }).count(), 1, `Missing/duplicate heading at ${route}, ${width}px, ${theme} theme`);
+      }
+      await admin.visit("/dashboard");
+      await admin.page.screenshot({
+        path: `/tmp/triagesync-qa/dashboard-${theme}-${width}.png`,
+        fullPage: true,
+      });
+      if (width <= 720) {
+        await admin.page.getByRole("button", { name: "Open navigation" }).click();
+        await admin.page
+          .getByRole("dialog")
+          .getByRole("link", { name: "Manage resources", exact: true })
+          .click();
+        assert.equal(await admin.page.getByRole("dialog").count(), 0);
+      }
     }
   }
-  record(
-    "all 12 pages at 1440, 768, 390, and 320px; no page overflow; mobile navigation",
-  );
+  record("all routes at 1440, 1280, 768, 390, 375, and 320px in light and dark; no page overflow; mobile navigation");
   await admin.page.setViewportSize({ width: 1440, height: 1000 });
   await admin.visit("/dashboard");
   await admin.page.getByRole("button", { name: "Collapse navigation" }).click();

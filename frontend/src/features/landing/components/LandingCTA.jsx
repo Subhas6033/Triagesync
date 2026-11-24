@@ -2,9 +2,9 @@ import { Link } from "react-router-dom";
 import { Headset } from "lucide-react";
 export default function LandingCTA() {
   return (
-    <section id="about" className="bg-slate-50 py-20">
+    <section id="about" className="landing-cta section-shell">
       <div className="container-app">
-        <div className="overflow-hidden rounded-3xl bg-indigo-600 px-7 py-16 text-center shadow-xl shadow-indigo-600/15 sm:px-16">
+        <div className="cta-band">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-white">
             <Headset size={27} />
           </div>
@@ -15,9 +15,9 @@ export default function LandingCTA() {
             Start organizing support tickets and resource bookings with one
             connected workspace.
           </p>
-          <Link
+            <Link
             to="/register"
-            className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-indigo-700 transition hover:bg-indigo-50"
+            className="cta-button"
           >
             Create your account
           </Link>

@@ -5,15 +5,25 @@ import Input from "../../../components/common/Input";
 import Button from "../../../components/common/Button";
 import ErrorState from "../../../components/common/ErrorState";
 import PasswordInput from "./PasswordInput";
+import { authErrorField, validateEmail, validateName, validatePassword } from "../../../utils/validation";
+import { getErrorMessage } from "../../../utils/formatters";
 export default function RegisterForm() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [formError, setFormError] = useState(null);
   async function submit(event) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
-    setError(null);
+    const errors = {
+      name: validateName(data.name),
+      email: validateEmail(data.email),
+      password: validatePassword(data.password),
+    };
+    setFieldErrors(Object.fromEntries(Object.entries(errors).filter(([, message]) => message)));
+    if (Object.values(errors).some(Boolean)) return;
+    setFormError(null);
     setLoading(true);
     try {
       await register(data);
@@ -21,14 +31,16 @@ export default function RegisterForm() {
         state: { message: "Account created. Please sign in." },
       });
     } catch (error) {
-      setError(error);
+      const field = authErrorField(error);
+      if (field === "form") setFormError(error);
+      else setFieldErrors({ [field]: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
   }
   return (
     <form onSubmit={submit} className="auth-form">
-      {error && <ErrorState title="Registration failed" error={error} />}
+      {formError && <ErrorState title="Registration failed" error={formError} />}
       <Input
         label="Full name"
         name="name"
@@ -36,6 +48,8 @@ export default function RegisterForm() {
         minLength={2}
         maxLength={50}
         required
+        error={fieldErrors.name}
+        onChange={() => setFieldErrors((current) => ({ ...current, name: undefined }))}
         placeholder="Your name"
       />
       <Input
@@ -45,6 +59,8 @@ export default function RegisterForm() {
         autoComplete="email"
         maxLength={254}
         required
+        error={fieldErrors.email}
+        onChange={() => setFieldErrors((current) => ({ ...current, email: undefined }))}
         placeholder="you@example.com"
       />
       <PasswordInput
@@ -54,6 +70,8 @@ export default function RegisterForm() {
         maxLength={64}
         pattern="(?=.*[A-Za-z])(?=.*[0-9]).*"
         required
+        error={fieldErrors.password}
+        onChange={() => setFieldErrors((current) => ({ ...current, password: undefined }))}
         placeholder="At least 8 characters"
         hint="Use at least 8 characters, including a letter and a number."
       />

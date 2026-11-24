@@ -75,9 +75,10 @@ export function useResourceMutations() {
 export function useResourceList() {
   const [search, setSearchValue] = useState("");
   const [type, setTypeValue] = useState("");
+  const [minCapacity, setMinCapacityValue] = useState("");
   const [page, setPage] = useState(1);
   const debounced = useDebounce(search);
-  const query = useResources({ q: debounced, type, page });
+  const query = useResources({ q: debounced, type, minCapacity, page, pageSize: 10 });
   if (query.isSuccess && page > query.pages) setPage(query.pages);
   function setSearch(value) {
     setSearchValue(value);
@@ -87,12 +88,18 @@ export function useResourceList() {
     setTypeValue(value);
     setPage(1);
   }
+  function setMinCapacity(value) {
+    setMinCapacityValue(value);
+    setPage(1);
+  }
   return {
     query,
     search,
     setSearch,
     type,
     setType,
+    minCapacity,
+    setMinCapacity,
     types: RESOURCE_TYPES,
     filtered: query.data || [],
     setPage,

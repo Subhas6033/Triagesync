@@ -49,7 +49,7 @@ export default function ResourceDetails({ resource, availability }) {
           </div>
           <AvailabilityCalendar query={availability} />
         </Card>
-        <BookingForm resource={resource} slots={availability.data || []} />
+        <BookingForm resource={resource} slots={availability.data || []} availabilityPending={availability.isPending} />
       </div>
     </>
   );

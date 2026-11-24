@@ -11,9 +11,10 @@ export default function TicketCard({ ticket }) {
       <div className="ticket-card-badges">
         <Badge value={ticket.status || "OPEN"} />
         <Badge value={ticket.priority} />
+        {ticket.category && <Badge value={ticket.category} icon />}
       </div>
       <div className="ticket-card-meta">
-        <span>{ticket.category || "Uncategorized"}</span>
+        <span>{ticket.isHumanOverride ? "Human override" : ticket.autoCategory ? `Auto: ${ticket.autoCategory.replaceAll("_", " ")}` : "Triage"}</span>
         <time
           dateTime={ticket.createdAt}
           title={formatDateTime(ticket.createdAt)}

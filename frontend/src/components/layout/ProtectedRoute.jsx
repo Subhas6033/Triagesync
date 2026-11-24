@@ -11,6 +11,6 @@ export default function ProtectedRoute({ adminOnly = false }) {
         state={{ from: location.pathname + location.search + location.hash }}
       />
     );
-  if (adminOnly && !isAdmin) return <Navigate to="/dashboard" replace />;
+  if (adminOnly && !isAdmin) return <Navigate to="/forbidden" replace />;
   return <Outlet />;
 }

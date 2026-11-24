@@ -1,6 +1,6 @@
 import { Clock3 } from "lucide-react";
 import Card from "../../../components/common/Card";
-import { formatDateTime } from "../../../utils/date";
+import { formatDateTime, formatRelativeDateTime } from "../../../utils/date";
 export default function TicketTimeline({ events = [] }) {
   return (
     <Card
@@ -21,7 +21,9 @@ export default function TicketTimeline({ events = [] }) {
                 </p>
                 <small>
                   {event.actor || "Workspace member"} ·{" "}
-                  {formatDateTime(event.createdAt)}
+                  <time dateTime={event.createdAt || undefined} title={formatDateTime(event.createdAt)}>
+                    {formatRelativeDateTime(event.createdAt)}
+                  </time>
                 </small>
               </div>
             </li>

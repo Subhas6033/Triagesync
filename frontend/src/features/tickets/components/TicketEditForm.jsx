@@ -10,10 +10,13 @@ import {
   TICKET_CATEGORIES,
 } from "../../../utils/constants";
 import { formatLabel } from "../../../utils/formatters";
+import { useState } from "react";
 export default function TicketEditForm({ ticket }) {
   const { update } = useTicketMutations();
+  const [errorDismissed, setErrorDismissed] = useState(false);
   function submit(event) {
     event.preventDefault();
+    setErrorDismissed(false);
     const fields = [...new FormData(event.currentTarget)].filter(
       ([, value]) => value,
     );
@@ -23,7 +26,7 @@ export default function TicketEditForm({ ticket }) {
     <Card
       title="Update ticket"
       description="Changes are recorded in the audit history."
-      className="edit-panel"
+      className={`edit-panel ${update.isError ? "rollback-shake" : ""}`}
     >
       <form className="detail-form" onSubmit={submit}>
         {[
@@ -50,10 +53,11 @@ export default function TicketEditForm({ ticket }) {
           defaultValue={ticket.assigneeId || ""}
           placeholder="Optional user ID"
         />
-        {update.isError && (
+        {update.isError && !errorDismissed && (
           <ErrorState
             title="Could not update this ticket"
             error={update.error}
+            onDismiss={() => setErrorDismissed(true)}
           />
         )}
         {update.isSuccess && (
@@ -61,7 +65,7 @@ export default function TicketEditForm({ ticket }) {
             Ticket changes saved.
           </p>
         )}
-        <Button type="submit" loading={update.isPending}>
+        <Button type="submit" loading={update.isPending} onClick={() => setErrorDismissed(false)}>
           {update.isPending ? "Saving…" : "Save changes"}
         </Button>
       </form>

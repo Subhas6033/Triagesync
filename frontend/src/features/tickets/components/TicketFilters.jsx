@@ -31,15 +31,12 @@ export default function TicketFilters({ filters, onChange }) {
           ))}
         </Select>
       ))}
-      {Object.values(filters).some(Boolean) && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onChange({ status: "", priority: "", category: "" })}
-        >
-          Clear filters
-        </Button>
-      )}
+      {Object.entries(filters).filter(([, value]) => value).map(([key, value]) => (
+        <button type="button" className="filter-chip" key={key} onClick={() => onChange({ ...filters, [key]: "" })}>
+          {key}: {formatLabel(value)} <span aria-hidden="true">×</span>
+        </button>
+      ))}
+      {Object.values(filters).some(Boolean) && <Button variant="ghost" size="sm" onClick={() => onChange({ status: "", priority: "", category: "" })}>Clear all</Button>}
     </div>
   );
 }

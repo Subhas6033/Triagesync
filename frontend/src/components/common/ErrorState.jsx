@@ -4,6 +4,7 @@ export default function ErrorState({
   error,
   title = "Unable to complete this request",
   onRetry,
+  onDismiss,
 }) {
   return (
     <div className="inline-alert" role="alert">
@@ -14,6 +15,7 @@ export default function ErrorState({
           Try again
         </Button>
       )}
+      {onDismiss && <Button variant="ghost" size="sm" onClick={onDismiss} aria-label="Dismiss error">Dismiss</Button>}
     </div>
   );
 }

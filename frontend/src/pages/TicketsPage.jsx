@@ -10,6 +10,9 @@ import TicketFilters from "../features/tickets/components/TicketFilters";
 import TicketTable from "../features/tickets/components/TicketTable";
 import { useTicketList } from "../features/tickets/hooks/useTickets";
 import { PAGE_SIZE } from "../utils/constants";
+import useTicketStats from "../features/tickets/hooks/useTicketStats";
+import { chartEntries } from "../utils/formatters";
+import { TICKET_STATUSES } from "../utils/constants";
 export default function TicketsPage() {
   const {
     query,
@@ -21,6 +24,8 @@ export default function TicketsPage() {
     setPage,
     pagination,
   } = useTicketList();
+  const stats = useTicketStats();
+  const statuses = Object.fromEntries(chartEntries(stats.stats.byStatus));
   return (
     <main className="workspace-page">
       <PageHeader
@@ -30,6 +35,16 @@ export default function TicketsPage() {
       >
         <TicketImport />
       </PageHeader>
+      <section className="ticket-stats-strip" aria-label="Ticket triage statistics">
+        <div><strong>{stats.stats.reviewedCount ?? "—"}</strong><span>Reviewed</span></div>
+        <div className="ticket-agreement"><strong>{stats.stats.modelAgreementRate == null ? "—" : `${stats.stats.modelAgreementRate}%`}</strong><span>Model agreement</span></div>
+        {TICKET_STATUSES.map((status) => <div key={status}><strong>{statuses[status] ?? "—"}</strong><span>{status.replaceAll("_", " ")}</span></div>)}
+      </section>
+      {stats.isError && <ErrorState title="Ticket statistics could not be loaded" error={stats.error} onRetry={stats.refetch} />}
+      {stats.isSuccess && <div className="ticket-stat-groups">
+        <div><b>By category</b>{chartEntries(stats.categories).map(([label, count]) => <span key={label}>{label.replaceAll("_", " ")} <strong>{count}</strong></span>)}</div>
+        <div><b>By priority</b>{chartEntries(stats.priorities).map(([label, count]) => <span key={label}>{label} <strong>{count}</strong></span>)}</div>
+      </div>}
       <section className="panel ticket-panel">
         <div className="ticket-toolbar">
           <SearchInput

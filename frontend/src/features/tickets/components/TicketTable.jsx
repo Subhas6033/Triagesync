@@ -31,7 +31,7 @@ export default function TicketTable({ tickets }) {
               <td>
                 <Badge value={ticket.priority} />
               </td>
-              <td>{ticket.category || "—"}</td>
+              <td>{ticket.category ? <Badge value={ticket.category} icon /> : "—"}</td>
               <td>{formatDate(ticket.createdAt)}</td>
             </tr>
           )}

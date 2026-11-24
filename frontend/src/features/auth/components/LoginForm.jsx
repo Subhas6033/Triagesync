@@ -5,22 +5,33 @@ import Input from "../../../components/common/Input";
 import Button from "../../../components/common/Button";
 import ErrorState from "../../../components/common/ErrorState";
 import PasswordInput from "./PasswordInput";
+import { authErrorField, validateEmail, validatePassword } from "../../../utils/validation";
+import { getErrorMessage } from "../../../utils/formatters";
 export default function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { state } = useLocation();
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [formError, setFormError] = useState(null);
   async function submit(event) {
     event.preventDefault();
     const credentials = Object.fromEntries(new FormData(event.currentTarget));
-    setError(null);
+    const errors = {
+      email: validateEmail(credentials.email),
+      password: validatePassword(credentials.password),
+    };
+    setFieldErrors(Object.fromEntries(Object.entries(errors).filter(([, message]) => message)));
+    if (Object.values(errors).some(Boolean)) return;
+    setFormError(null);
     setLoading(true);
     try {
       await login(credentials);
       navigate(state?.from || "/dashboard", { replace: true });
     } catch (error) {
-      setError(error);
+      const field = authErrorField(error);
+      if (field === "form") setFormError(error);
+      else setFieldErrors({ [field]: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -32,19 +43,24 @@ export default function LoginForm() {
           {state.message}
         </p>
       )}
-      {error && <ErrorState title="Unable to sign in" error={error} />}
+      {formError && <ErrorState title="Unable to sign in" error={formError} />}
       <Input
         label="Email address"
         name="email"
         type="email"
         autoComplete="email"
         required
+        maxLength={254}
+        error={fieldErrors.email}
+        onChange={() => setFieldErrors((current) => ({ ...current, email: undefined }))}
         placeholder="you@example.com"
       />
       <PasswordInput
         name="password"
         autoComplete="current-password"
         required
+        error={fieldErrors.password}
+        onChange={() => setFieldErrors((current) => ({ ...current, password: undefined }))}
         placeholder="Enter your password"
       />
       <Button type="submit" loading={loading}>

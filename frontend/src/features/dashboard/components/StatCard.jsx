@@ -1,3 +1,4 @@
+import AnimatedNumber from "../../../components/common/AnimatedNumber";
 export default function StatCard({
   label,
   value,
@@ -11,7 +12,7 @@ export default function StatCard({
         <Icon size={21} aria-hidden="true" />
       </div>
       <p>{label}</p>
-      <strong>{value ?? "—"}</strong>
+      <strong>{typeof value === "number" ? <AnimatedNumber value={value} /> : value ?? "—"}</strong>
       {note && <small>{note}</small>}
     </article>
   );

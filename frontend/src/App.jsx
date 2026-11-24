@@ -1,3 +1,4 @@
+import { ThemeProvider } from "./context/ThemeContext";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 
@@ -8,7 +9,7 @@ import { ToastProvider } from "./context/ToastContext";
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <ThemeProvider><QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
           <BrowserRouter>
@@ -16,7 +17,7 @@ function App() {
           </BrowserRouter>
         </AuthProvider>
       </ToastProvider>
-    </QueryClientProvider>
+    </QueryClientProvider></ThemeProvider>
   );
 }
 

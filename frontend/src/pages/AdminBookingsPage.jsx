@@ -22,6 +22,8 @@ export default function AdminBookingsPage() {
             {[
               ["PENDING", "Pending"],
               ["APPROVED", "Approved"],
+              ["REJECTED", "Rejected"],
+              ["CANCELLED", "Cancelled"],
               ["ALL", "All requests"],
             ].map(([value, label]) => (
               <Button

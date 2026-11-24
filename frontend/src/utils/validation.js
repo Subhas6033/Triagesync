@@ -1,3 +1,32 @@
+export function validateName(value) {
+  const length = String(value || "").trim().length;
+  if (length < 2 || length > 50) return "Name must be 2–50 characters.";
+  return "";
+}
+
+export function validateEmail(value) {
+  const email = String(value || "").trim();
+  if (email.length > 254) return "Email must be 254 characters or fewer.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email address.";
+  return "";
+}
+
+export function validatePassword(value) {
+  const password = String(value || "");
+  if (password.length < 8 || password.length > 64) return "Password must be 8–64 characters.";
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return "Use at least one letter and one number.";
+  return "";
+}
+
+export function authErrorField(error) {
+  const payload = error?.response?.data?.error;
+  const field = String(payload?.field || payload?.code || "").toLowerCase();
+  if (field.includes("email")) return "email";
+  if (field.includes("password")) return "password";
+  if (field.includes("name")) return "name";
+  return "form";
+}
+
 export function parseTicketImport(text) {
   const parsed = JSON.parse(text);
   const tickets = Array.isArray(parsed) ? parsed : parsed?.tickets;

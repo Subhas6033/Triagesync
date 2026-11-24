@@ -1,35 +1,32 @@
-import { CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { workflow } from "../landingContent";
+import { motion } from "motion/react";
+import { fadeUp } from "../../../lib/motion";
 export default function LandingWorkflow() {
   return (
-    <section id="workflow" className="bg-white py-24">
-      <div className="container-app grid items-center gap-12 lg:grid-cols-2">
+    <section id="workflow" className="landing-workflow section-shell">
+      <div className="container-app workflow-layout">
         <div>
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">
-            A simpler process
-          </span>
-          <h2 className="section-heading mt-4">
+          <span className="eyebrow">A calmer operating rhythm</span>
+          <h2 className="section-heading">
             From incoming request to organized resolution.
           </h2>
-          <p className="muted-text mt-5 max-w-xl">
+          <p className="muted-text">
             Keep the important parts of support operations connected. Triage
             requests, coordinate shared resources, and track activity without
             jumping between disconnected workflows.
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="workflow-list">
           {workflow.map((item, index) => (
-            <div key={item} className="surface flex items-center gap-4 p-5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 font-bold text-indigo-700">
+            <motion.div key={item} className="workflow-step surface" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.35 }} variants={fadeUp}>
+              <div className="workflow-number">
                 {index + 1}
               </div>
-              <p className="font-semibold text-slate-800">{item}</p>
-              <CheckCircle2
-                className="ml-auto shrink-0 text-emerald-500"
-                size={20}
-              />
-            </div>
+              <p>{item}</p>
+              <ArrowRight className="workflow-arrow" size={18} />
+            </motion.div>
           ))}
         </div>
       </div>

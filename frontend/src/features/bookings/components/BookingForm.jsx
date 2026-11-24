@@ -6,10 +6,16 @@ import ErrorState from "../../../components/common/ErrorState";
 import { useBookingMutations } from "../hooks/useBookings";
 import { toLocalDateTime } from "../../../utils/date";
 import { validateBooking } from "../../../utils/validation";
-export default function BookingForm({ resource, slots }) {
+import { getErrorMessage } from "../../../utils/formatters";
+export default function BookingForm({ resource, slots, availabilityPending = false }) {
   const { create } = useBookingMutations();
   const [error, setError] = useState("");
-  const [openedAt] = useState(() => new Date());
+  const [purpose, setPurpose] = useState("");
+  const [openedAt] = useState(() => {
+    const nextSlot = new Date();
+    nextSlot.setMinutes(Math.ceil(nextSlot.getMinutes() / 30) * 30, 0, 0);
+    return nextSlot;
+  });
   function submit(event) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -35,6 +41,7 @@ export default function BookingForm({ resource, slots }) {
           label="Start date and time"
           name="startTime"
           type="datetime-local"
+          step={1800}
           min={toLocalDateTime(openedAt)}
           max={toLocalDateTime(new Date(openedAt.getTime() + 30 * 86400000))}
           required
@@ -44,6 +51,7 @@ export default function BookingForm({ resource, slots }) {
           label="End date and time"
           name="endTime"
           type="datetime-local"
+          step={1800}
           required
           hint="Reserve 30 minutes to 4 hours, on a 30-minute boundary."
         />
@@ -54,9 +62,12 @@ export default function BookingForm({ resource, slots }) {
           rows={4}
           minLength={5}
           maxLength={200}
+          value={purpose}
+          onChange={(event) => setPurpose(event.target.value)}
           required
           placeholder="What will this resource be used for?"
         />
+        <p className="field-hint purpose-counter" aria-live="polite">{purpose.length}/200 characters</p>
         <Input
           label="Related ticket ID (optional)"
           name="ticketId"
@@ -64,7 +75,10 @@ export default function BookingForm({ resource, slots }) {
         />
         {error && <ErrorState title={error} />}
         {create.isError && (
-          <ErrorState title="Could not submit booking" error={create.error} />
+          <ErrorState
+            title={create.error?.response?.status === 409 ? "That slot was just booked" : "Could not submit booking"}
+            error={create.error?.response?.status === 409 ? { message: "Availability changed while you were booking. Choose another time." } : getErrorMessage(create.error)}
+          />
         )}
         {create.isSuccess && !error && (
           <p className="success-message" role="status">
@@ -79,9 +93,9 @@ export default function BookingForm({ resource, slots }) {
         <Button
           type="submit"
           loading={create.isPending}
-          disabled={resource.isActive === false}
+          disabled={resource.isActive === false || availabilityPending}
         >
-          {create.isPending ? "Submitting…" : "Request booking"}
+          {create.isPending ? "Submitting…" : availabilityPending ? "Checking availability…" : "Request booking"}
         </Button>
       </form>
     </Card>

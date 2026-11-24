@@ -1,3 +1,10 @@
+import {
+  BOOKING_STATUS_STYLES,
+  CATEGORY_STYLES,
+  PRIORITY_STYLES,
+  TICKET_STATUS_STYLES,
+} from "./styleMaps";
+
 export const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 export const TICKET_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 export const TICKET_CATEGORIES = [
@@ -15,18 +22,14 @@ export const BOOKING_STATUSES = [
   "CANCELLED",
 ];
 export const STATUS_TONES = {
-  OPEN: "blue",
-  IN_PROGRESS: "violet",
-  RESOLVED: "green",
-  CLOSED: "gray",
-  LOW: "gray",
-  MEDIUM: "blue",
-  HIGH: "amber",
-  URGENT: "red",
-  PENDING: "amber",
-  APPROVED: "green",
-  REJECTED: "red",
-  CANCELLED: "gray",
+  ...Object.fromEntries(
+    Object.entries({
+      ...CATEGORY_STYLES,
+      ...PRIORITY_STYLES,
+      ...TICKET_STATUS_STYLES,
+      ...BOOKING_STATUS_STYLES,
+    }).map(([key, style]) => [key, style.tone]),
+  ),
   BOOKED: "amber",
   ACTIVE: "green",
   INACTIVE: "gray",

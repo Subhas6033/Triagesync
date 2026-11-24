@@ -19,17 +19,12 @@ export default function TicketOverview({ data, admin }) {
             description="Review coverage across triage outcomes"
             className="reviewed-panel"
           >
-            <div className="reviewed-number">
-              {data.stats.reviewedCount ?? "—"}
-              <span>tickets reviewed</span>
-            </div>
-            <div className="reviewed-rate">
-              <span>Model agreement</span>
-              <b>
-                {data.stats.modelAgreementRate == null
-                  ? "—"
-                  : `${data.stats.modelAgreementRate}%`}
-              </b>
+            <div className="review-summary">
+              <div className="reviewed-number">{data.stats.reviewedCount ?? "—"}<span>tickets reviewed</span></div>
+              <div className="agreement-ring" style={{ "--rate": `${Math.max(0, Math.min(100, Number(data.stats.modelAgreementRate) || 0))}%` }} aria-label={`Model agreement ${data.stats.modelAgreementRate ?? "unavailable"}${data.stats.modelAgreementRate == null ? "" : "%"}`}>
+                <span>{data.stats.modelAgreementRate == null ? "—" : `${data.stats.modelAgreementRate}%`}</span>
+              </div>
+              <div className="reviewed-rate"><span>Model agreement</span><b>Across reviewed tickets</b></div>
             </div>
           </Card>
         </>

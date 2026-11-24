@@ -2,10 +2,11 @@ import Pagination from "../components/common/Pagination";
 import PageHeader from "../components/common/PageHeader";
 import SearchInput from "../components/common/SearchInput";
 import Select from "../components/common/Select";
+import Input from "../components/common/Input";
 import ResourceList from "../features/resources/components/ResourceList";
 import { useResourceList } from "../features/resources/hooks/useResources";
 export default function ResourcesPage() {
-  const { query, search, setSearch, type, setType, types, filtered, setPage } =
+  const { query, search, setSearch, type, setType, minCapacity, setMinCapacity, types, filtered, setPage } =
     useResourceList();
   return (
     <main className="workspace-page">
@@ -31,6 +32,15 @@ export default function ResourcesPage() {
             <option key={value}>{value}</option>
           ))}
         </Select>
+        <Input
+          label="Minimum capacity"
+          aria-label="Minimum capacity"
+          type="number"
+          min="0"
+          value={minCapacity}
+          onChange={(event) => setMinCapacity(event.target.value)}
+          placeholder="Any capacity"
+        />
         <span className="result-count">{query.total} resources</span>
       </section>
       <ResourceList resources={filtered} query={query} />

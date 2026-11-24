@@ -33,7 +33,7 @@ export default function TicketImport() {
         onClick={() => fileInput.current.click()}
       >
         <Upload size={17} />
-        Import tickets
+        Re-Import Feed
       </Button>
       <input
         ref={fileInput}

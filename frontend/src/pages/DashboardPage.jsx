@@ -1,3 +1,4 @@
+import { MotionConfig } from "motion/react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -19,7 +20,7 @@ export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
   const data = useDashboardStats();
   return (
-    <main className="workspace-page">
+    <MotionConfig reducedMotion="user"><main className="workspace-page">
       <PageHeader
         eyebrow="YOUR WORKSPACE"
         title={`Good to see you, ${user?.name?.split(" ")[0] || "there"}`}
@@ -84,6 +85,6 @@ export default function DashboardPage() {
           <TicketOverview data={data} admin={isAdmin} />
         </>
       )}
-    </main>
+    </main></MotionConfig>
   );
 }
