@@ -9,7 +9,13 @@ import { ToastProvider } from "./context/ToastContext";
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider><AuthProvider><BrowserRouter><AppRouter /></BrowserRouter></AuthProvider></ToastProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRouter />
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

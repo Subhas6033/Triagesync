@@ -1,11 +1,17 @@
 const queryKeys = {
   tickets: ["tickets"],
-  ticket: (id) => ["tickets", id],
+  ticketList: ["tickets", "list"],
+  ticket: (id) => ["tickets", "detail", String(id)],
   resources: ["resources"],
-  resource: (id) => ["resources", id],
+  resourceList: ["resources", "list"],
+  resource: (id) => ["resources", "detail", String(id)],
+  availability: (id) => ["resources", "availability", String(id)],
+  allAvailability: ["resources", "availability"],
   bookings: ["bookings"],
+  adminBookings: ["bookings", "admin"],
   myBookings: ["bookings", "mine"],
   dashboard: ["dashboard"],
+  adminStats: ["dashboard", "admin"],
+  ticketStats: ["dashboard", "tickets"],
 };
-
 export default queryKeys;

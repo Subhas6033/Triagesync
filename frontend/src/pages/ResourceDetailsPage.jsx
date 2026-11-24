@@ -1,26 +1,38 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, Clock3, MapPin, Package, Users } from "lucide-react";
-import { getResource, getResourceAvailability } from "../features/resources/resources.api";
-import { createBooking } from "../features/bookings/bookings.api";
-import queryKeys from "../lib/queryKeys";
-
-const day = (date) => date.toISOString().slice(0, 10);
+import {
+  useResource,
+  useResourceAvailability,
+} from "../features/resources/hooks/useResources";
+import ResourceDetails from "../features/resources/components/ResourceDetails";
+import Skeleton from "../components/common/Skeleton";
+import ErrorState from "../components/common/ErrorState";
+import EmptyState from "../components/common/EmptyState";
 export default function ResourceDetailsPage() {
-  const { id } = useParams(); const client = useQueryClient(); const [message, setMessage] = useState(""); const [error, setError] = useState("");
-  const resourceQuery = useQuery({ queryKey: queryKeys.resource(id), queryFn: () => getResource(id) });
-  const start = new Date(); start.setHours(0, 0, 0, 0); const end = new Date(start); end.setDate(end.getDate() + 7);
-  const availabilityQuery = useQuery({ queryKey: [...queryKeys.resource(id), "availability", day(start), day(end)], queryFn: () => getResourceAvailability(id, day(start), day(end)), enabled: Boolean(resourceQuery.data) });
-  const bookingMutation = useMutation({ mutationFn: createBooking, onSuccess: async () => { setMessage("Booking request sent. You can track its status in My bookings."); setError(""); await client.invalidateQueries({ queryKey: queryKeys.myBookings }); await client.invalidateQueries({ queryKey: [...queryKeys.resource(id), "availability"] }); } });
-  const resource = resourceQuery.data?.data ?? resourceQuery.data;
-  function submit(event) { event.preventDefault(); const form = new FormData(event.currentTarget); const startTime = form.get("startTime"); const endTime = form.get("endTime"); const startDate = new Date(startTime); const endDate = new Date(endTime); if (endDate <= startDate) { setError("Choose an end time after the start time."); return; } const conflict = slots.some(slot => { const reserved = ["PENDING", "APPROVED", "BOOKED"].includes(String(slot.status || "").toUpperCase()) || slot.isAvailable === false; const slotStart = new Date(slot.startTime || slot.start); const slotEnd = new Date(slot.endTime || slot.end); return reserved && slotStart < endDate && slotEnd > startDate; }); if (conflict) { setError("This time overlaps an existing reservation. Choose another time."); return; } setError(""); setMessage(""); bookingMutation.mutate({ resourceId: id, startTime: startDate.toISOString(), endTime: endDate.toISOString(), purpose: form.get("purpose"), ticketId: form.get("ticketId") || undefined }); }
-  const availability = availabilityQuery.data?.data ?? availabilityQuery.data;
-  const slots = Array.isArray(availability) ? availability : availability?.slots || availability?.bookings || [];
-  return <main className="workspace-page"><Link to="/resources" className="back-link"><ArrowLeft size={16}/>All resources</Link>{resourceQuery.isPending ? <div className="skeleton detail-skeleton"/> : resourceQuery.isError ? <div className="panel empty-state"><b>Resource could not be loaded</b><p>{resourceQuery.error?.response?.data?.message || "Please try again."}</p><button onClick={() => resourceQuery.refetch()}>Retry</button></div> : resource && <>
-    <div className="detail-heading"><div><p className="eyebrow">{resource.type || "RESOURCE"}</p><h1>{resource.name}</h1><p className="page-subtitle">{resource.description || "Shared workspace resource."}</p></div><span className={`resource-active ${resource.isActive === false ? "inactive" : ""}`}><i/>{resource.isActive === false ? "Inactive" : "Available"}</span></div>
-    <div className="resource-detail-grid"><section className="panel resource-overview"><div className="resource-hero-icon"><Package size={24}/></div><h2>Resource information</h2><p>Plan your team’s next session with this shared resource.</p><div className="resource-detail-meta">{resource.location && <span><MapPin size={17}/><span><small>Location</small><b>{resource.location}</b></span></span>}{resource.capacity && <span><Users size={17}/><span><small>Capacity</small><b>{resource.capacity} people</b></span></span>}<span><CalendarDays size={17}/><span><small>Availability window</small><b>Next 7 days</b></span></span></div>
-      <div className="availability-section"><div className="panel-heading"><div><h2>Availability</h2><p>Existing reservations in the coming week</p></div><Clock3 size={17}/></div>{availabilityQuery.isPending ? <div className="skeleton availability-skeleton"/> : availabilityQuery.isError ? <p className="availability-note">Availability details are currently unavailable.</p> : slots.length ? <div className="availability-list">{slots.map((slot,index)=><div key={slot.id || `${slot.startTime}-${index}`}><span className="availability-dot"/><span>{new Date(slot.startTime || slot.start).toLocaleString()} – {new Date(slot.endTime || slot.end).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</span><b>{slot.status || "Reserved"}</b></div>)}</div> : <p className="availability-note">No existing reservations were returned for this period.</p>}</div>
-    </section><section className="panel booking-form-panel"><div className="panel-heading"><div><h2>Request a booking</h2><p>Submit a reservation for administrator review.</p></div><CalendarDays size={18}/></div><form className="detail-form" onSubmit={submit}><label>Start date and time<input name="startTime" type="datetime-local" required min={new Date().toISOString().slice(0,16)}/></label><label>End date and time<input name="endTime" type="datetime-local" required/></label><label>Purpose<textarea name="purpose" rows="4" required placeholder="What will this resource be used for?"/></label><label>Related ticket ID <span className="optional-label">Optional</span><input name="ticketId" placeholder="Enter a ticket ID"/></label>{error && <p className="inline-alert" role="alert">{error}</p>}{message && <p className="success-message" role="status">{message}</p>}{bookingMutation.isError && <p className="inline-alert" role="alert">{bookingMutation.error?.response?.data?.message || "Could not submit booking."}</p>}<button className="btn-primary" disabled={bookingMutation.isPending || resource.isActive === false}><CalendarDays size={16}/>{bookingMutation.isPending ? "Submitting…" : "Request booking"}</button></form></section></div>
-  </>}</main>;
+  const { id } = useParams();
+  const query = useResource(id);
+  const availability = useResourceAvailability(id, Boolean(query.data));
+  return (
+    <main className="workspace-page">
+      <Link to="/resources" className="back-link">
+        All resources
+      </Link>
+      {query.isPending ? (
+        <Skeleton className="detail-skeleton" />
+      ) : query.isError ? (
+        <ErrorState
+          title="Resource could not be loaded"
+          error={query.error}
+          onRetry={query.refetch}
+        />
+      ) : query.data ? (
+        <ResourceDetails
+          key={id}
+          resource={query.data}
+          availability={availability}
+        />
+      ) : (
+        <EmptyState title="Resource not found" />
+      )}
+    </main>
+  );
 }

@@ -1,28 +1,71 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Search, Upload, Ticket, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
-import { getTickets, importTickets } from "../features/tickets/tickets.api";
-import queryKeys from "../lib/queryKeys";
-
-const badgeTone = (value) => ({ OPEN: "blue", IN_PROGRESS: "violet", RESOLVED: "green", CLOSED: "gray", LOW: "gray", MEDIUM: "blue", HIGH: "amber", URGENT: "red" }[value] || "gray");
-const EMPTY_TICKETS = [];
+import { Ticket } from "lucide-react";
+import PageHeader from "../components/common/PageHeader";
+import SearchInput from "../components/common/SearchInput";
+import ErrorState from "../components/common/ErrorState";
+import EmptyState from "../components/common/EmptyState";
+import Skeleton from "../components/common/Skeleton";
+import Pagination from "../components/common/Pagination";
+import TicketImport from "../features/tickets/components/TicketImport";
+import TicketFilters from "../features/tickets/components/TicketFilters";
+import TicketTable from "../features/tickets/components/TicketTable";
+import { useTicketList } from "../features/tickets/hooks/useTickets";
+import { PAGE_SIZE } from "../utils/constants";
 export default function TicketsPage() {
-  const client = useQueryClient(); const [q, setQ] = useState(""); const [submittedQuery, setSubmittedQuery] = useState(""); const [status, setStatus] = useState(""); const [priority, setPriority] = useState(""); const [category, setCategory] = useState(""); const [msg, setMsg] = useState(""); const [page, setPage] = useState(1); const size = 8;
-  const query = useQuery({ queryKey: [...queryKeys.tickets, "list", submittedQuery], queryFn: () => getTickets({ q: submittedQuery || undefined }) });
-  const data = Array.isArray(query.data) ? query.data : query.data?.data ?? query.data?.tickets ?? EMPTY_TICKETS;
-  const importMutation = useMutation({ mutationFn: importTickets, onSuccess: async () => { setMsg("Tickets imported successfully."); await client.invalidateQueries({ queryKey: queryKeys.tickets }); } });
-  const filtered = useMemo(() => data.filter(t => (!status || t.status === status) && (!priority || t.priority === priority) && (!category || t.category === category)), [data, status, priority, category]);
-  const pages = Math.max(1, Math.ceil(filtered.length / size)); const visible = filtered.slice((page - 1) * size, page * size);
-  async function upload(e) { const f = e.target.files?.[0]; if (!f) return; try { const parsed = JSON.parse(await f.text()); const tickets = Array.isArray(parsed) ? parsed : parsed.tickets; if (!Array.isArray(tickets)) throw new Error(); setMsg(""); importMutation.mutate(tickets); } catch (err) { setMsg(err.response?.data?.message || "Import expects a JSON file containing a tickets array"); } e.target.value = ""; }
-  function search(e) { e.preventDefault(); setPage(1); setSubmittedQuery(q); }
-  return <main className="workspace-page"><div className="page-heading"><div><p className="eyebrow">SUPPORT OPERATIONS</p><h1>Tickets</h1><p className="page-subtitle">Triage incoming requests and keep work moving.</p></div><label className="btn-secondary ticket-import"><Upload size={15}/> Import tickets<input type="file" accept="application/json,.json" onChange={upload} hidden/></label></div>
-    {(msg || query.isError || importMutation.isError) && <div className="inline-alert" role={query.isError || importMutation.isError ? "alert" : "status"}>{msg || query.error?.response?.data?.message || importMutation.error?.response?.data?.message || "Unable to load tickets."}<button aria-label="Dismiss message" onClick={()=>setMsg("")}><X size={16}/></button></div>}
-    <section className="panel ticket-panel"><div className="ticket-toolbar"><form onSubmit={search} className="ticket-search"><Search size={16}/><input aria-label="Search tickets" placeholder="Search tickets..." value={q} onChange={e=>setQ(e.target.value)}/><button type="submit">Search</button></form><span className="result-count">{filtered.length} {filtered.length === 1 ? "ticket" : "tickets"}</span></div><div className="filter-row"><SlidersHorizontal size={15}/><span>Filter by</span><select aria-label="Filter by status" value={status} onChange={e=>{setStatus(e.target.value);setPage(1)}}><option value="">All statuses</option>{["OPEN","IN_PROGRESS","RESOLVED","CLOSED"].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Filter by priority" value={priority} onChange={e=>{setPriority(e.target.value);setPage(1)}}><option value="">All priorities</option>{["LOW","MEDIUM","HIGH","URGENT"].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Filter by category" value={category} onChange={e=>{setCategory(e.target.value);setPage(1)}}><option value="">All categories</option>{["BILLING","TECHNICAL","ACCOUNT","GENERAL"].map(x=><option key={x}>{x}</option>)}</select></div>
-      <div className="table-scroll"><table className="data-table"><thead><tr><th>Ticket</th><th>Status</th><th>Priority</th><th>Category</th><th>Created</th></tr></thead><tbody>{!query.isPending && visible.map(t=><tr key={t.id}><td><Link to={`/tickets/${t.id}`} className="ticket-title"><span className="ticket-mini-icon"><Ticket size={17}/></span><span><b>{t.subject || "Untitled ticket"}</b><small>{t.body || t.id}</small></span></Link></td><td><span className={`status-badge ${badgeTone(t.status)}`}>{(t.status || "OPEN").replace("_", " ")}</span></td><td><span className={`priority-dot ${badgeTone(t.priority)}`}/>{t.priority || "—"}</td><td>{t.category || "—"}</td><td>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : "—"}</td></tr>)}</tbody></table></div>
-      {query.isPending && <div className="table-loading"><div className="skeleton line-skeleton"/><div className="skeleton line-skeleton"/><div className="skeleton line-skeleton"/></div>}
-      {!query.isPending && !query.isError && filtered.length === 0 && <div className="empty-state"><span><Ticket size={22}/></span><b>{data.length ? "No tickets match these filters" : "No tickets yet"}</b><p>{data.length ? "Try changing or clearing a filter." : "New support requests will appear here."}</p>{data.length > 0 && <button onClick={()=>{setStatus("");setPriority("");setCategory("")}}>Clear filters</button>}</div>}
-      {filtered.length > size && <div className="table-pagination"><span>Showing {((page-1)*size)+1}–{Math.min(page*size,filtered.length)} of {filtered.length}</span><div><button aria-label="Previous page" disabled={page===1} onClick={()=>setPage(page-1)}><ChevronLeft size={16}/></button><span>Page {page} of {pages}</span><button aria-label="Next page" disabled={page===pages} onClick={()=>setPage(page+1)}><ChevronRight size={16}/></button></div></div>}
-    </section>
-  </main>;
+  const {
+    query,
+    search,
+    setSearch,
+    submitSearch,
+    filters,
+    changeFilters,
+    setPage,
+    pagination,
+  } = useTicketList();
+  return (
+    <main className="workspace-page">
+      <PageHeader
+        eyebrow="SUPPORT OPERATIONS"
+        title="Tickets"
+        description="Triage incoming requests and keep work moving."
+      >
+        <TicketImport />
+      </PageHeader>
+      <section className="panel ticket-panel">
+        <div className="ticket-toolbar">
+          <SearchInput
+            label="Search tickets"
+            value={search}
+            onChange={setSearch}
+            onSubmit={submitSearch}
+            placeholder="Search tickets…"
+          />
+          <span className="result-count">{pagination.total} tickets</span>
+        </div>
+        <TicketFilters filters={filters} onChange={changeFilters} />
+        {query.isPending ? (
+          <Skeleton count={3} />
+        ) : query.isError ? (
+          <ErrorState
+            title="Tickets could not be loaded"
+            error={query.error}
+            onRetry={query.refetch}
+          />
+        ) : pagination.total ? (
+          <TicketTable tickets={pagination.items} />
+        ) : (
+          <EmptyState
+            icon={Ticket}
+            title="No tickets found"
+            description="New support requests will appear here. Try another search or clear your filters."
+          />
+        )}
+        <Pagination
+          page={pagination.page}
+          total={pagination.total}
+          pageSize={PAGE_SIZE}
+          onChange={setPage}
+        />
+      </section>
+    </main>
+  );
 }

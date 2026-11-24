@@ -1,45 +1,89 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, CheckCircle2, Clock3, Package, Ticket, TrendingUp } from "lucide-react";
-import { getDashboardStats, getTicketDashboardStats } from "../features/dashboard/dashboard.api";
-import { getResources } from "../features/resources/resources.api";
-import { getBookings } from "../features/bookings/bookings.api";
-import { getTickets } from "../features/tickets/tickets.api";
-import { useAuth } from "../context/AuthContext";
-import queryKeys from "../lib/queryKeys";
-
-const colors = ["violet", "blue", "green", "amber", "red"];
-const rowsFrom = (value) => Array.isArray(value) ? value : value?.data ?? value?.items ?? [];
-function countBy(items, key) { return items.reduce((result, item) => { const value = item?.[key] || "Uncategorized"; result[value] = (result[value] || 0) + 1; return result; }, {}); }
-function Breakdown({ title, subtitle, values, empty, icon: Icon }) {
-  const entries = (Array.isArray(values)
-    ? values.map(item => [item.category ?? item.priority ?? item.name ?? item.label ?? "Other", item.count ?? item.total ?? item.value ?? 0])
-    : Object.entries(values || {}).map(([label, value]) => [label, typeof value === "object" && value !== null ? value.count ?? value.total ?? value.value ?? 0 : value]))
-    .filter(([, value]) => Number.isFinite(Number(value)))
-    .sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,5);
-  const max = Math.max(1, ...entries.map(([,value])=>Number(value)||0));
-  return <section className="panel breakdown-panel"><div className="panel-heading"><div><h2>{title}</h2><p>{subtitle}</p></div><Icon size={18} className="panel-heading-icon"/></div>{entries.length ? <div className="breakdown-list">{entries.map(([label,value],index)=><div className="breakdown-row" key={label}><div><span>{label.replaceAll("_"," ")}</span><b>{value}</b></div><div className="breakdown-track"><span className={colors[index % colors.length]} style={{width:`${Math.max(4,Number(value)/max*100)}%`}}/></div></div>)}</div> : <p className="analytics-empty">{empty}</p>}</section>;
-}
+import {
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  Package,
+  TrendingUp,
+} from "lucide-react";
+import { useAuth } from "../features/auth/hooks/useAuth";
+import useDashboardStats from "../features/dashboard/hooks/useDashboardStats";
+import StatCard from "../features/dashboard/components/StatCard";
+import TicketOverview from "../features/dashboard/components/TicketOverview";
+import ResourceOverview from "../features/dashboard/components/ResourceOverview";
+import WorkspaceSnapshot from "../features/dashboard/components/WorkspaceSnapshot";
+import PageHeader from "../components/common/PageHeader";
+import ErrorState from "../components/common/ErrorState";
+import Skeleton from "../components/common/Skeleton";
+import { formatDate } from "../utils/date";
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
-  const query = useQuery({ queryKey: [...queryKeys.dashboard, isAdmin ? "admin" : "user"], queryFn: async () => {
-    const statPromise = isAdmin ? getDashboardStats().catch(() => getTicketDashboardStats()) : getTicketDashboardStats();
-    const [stats, tickets, resources, bookings] = await Promise.all([statPromise, getTickets().catch(()=>null), isAdmin ? getResources().catch(()=>null) : Promise.resolve(null), isAdmin ? getBookings().catch(()=>null) : Promise.resolve(null)]);
-    return { stats, tickets: rowsFrom(tickets?.data ?? tickets), resources: rowsFrom(resources?.data ?? resources), bookings: rowsFrom(bookings?.data ?? bookings) };
-  }, staleTime: 45_000 });
-  const data = query.data; const stats = data?.stats?.ticketStats || data?.stats || {}; const bookingCounts = data?.stats?.bookingsByStatus || countBy(data?.bookings || [], "status");
-  const categories = stats.categoryCounts || stats.byCategory || countBy(data?.tickets || [], "category"); const priorities = stats.priorityCounts || stats.byPriority || countBy(data?.tickets || [], "priority");
-  const resourceCounts = data?.resources?.map(resource => ({ name: resource.name, count: (data.bookings || []).filter(booking => booking.resourceId === resource.id || booking.resource?.id === resource.id).length })) || [];
-  const topResources = resourceCounts.sort((a,b)=>b.count-a.count).slice(0,5).reduce((acc,item)=>({...acc,[item.name]:item.count}),{});
-  const cards = [{ label:"Active resources",value:data?.stats?.activeResources ?? (data?.resources?.filter(resource=>resource.isActive!==false).length ?? "—"),icon:Package,color:"violet",note:"Available to your team" },{ label:"Reviewed tickets",value:stats.reviewedCount ?? "—",icon:CheckCircle2,color:"green",note:"Human-reviewed cases" },{ label:"Model agreement",value:stats.modelAgreementRate == null ? "—" : `${stats.modelAgreementRate}%`,icon:TrendingUp,color:"blue",note:"Triage consistency" },{ label:"Pending bookings",value:bookingCounts.PENDING ?? "—",icon:Clock3,color:"amber",note:"Awaiting a decision" }];
-  const ticketTotal = (data?.tickets || []).length; const bookingsTotal = Object.values(bookingCounts).reduce((sum,value)=>sum+(Number(value)||0),0); const recent = [...(data?.tickets || [])].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,5);
-  return <main className="workspace-page"><div className="page-heading"><div><p className="eyebrow">YOUR WORKSPACE</p><h1>Good to see you, {user?.name?.split(" ")[0] || "there"}</h1><p className="page-subtitle">Here’s what’s happening across your support operations.</p></div><div className="heading-date"><CalendarDays size={17}/>{new Date().toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"})}</div></div>
-    {query.isError && <div className="inline-alert" role="alert">{query.error?.response?.data?.message || "Could not load dashboard data."}<button onClick={()=>query.refetch()}>Retry</button></div>}
-    {query.isPending ? <div className="stats-grid">{cards.map(card=><div className="skeleton stat-skeleton" key={card.label}/>)}</div> : <div className="stats-grid">{cards.map(({label,value,icon:Icon,color,note})=><article className="stat-card" key={label}><div className={`stat-icon ${color}`}><Icon size={20}/></div><span className="stat-trend"><ArrowUpRight size={16}/></span><p>{label}</p><strong>{value}</strong><small>{note}</small></article>)}</div>}
-    <div className="dashboard-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h2>Booking overview</h2><p>Reservation status across your workspace</p></div><CalendarDays size={19} className="panel-heading-icon"/></div>{data ? <><div className="booking-total"><strong>{bookingsTotal}</strong><span>total bookings</span></div><div className="status-bars">{["PENDING","APPROVED","REJECTED","CANCELLED"].map((key,index)=><div className="status-row" key={key}><span><i className={`dot ${["amber","green","red","gray"][index]}`}/>{key.charAt(0)+key.slice(1).toLowerCase()}</span><div className="bar-track"><i className={`bar-fill ${["amber","green","red","gray"][index]}`} style={{width:`${bookingsTotal ? Math.max(2,(Number(bookingCounts[key]||0)/bookingsTotal)*100) : 0}%`}}/></div><b>{bookingCounts[key] ?? 0}</b></div>)}</div></> : <div className="skeleton chart-skeleton"/>}</section>
-      <section className="panel quick-panel"><div className="panel-heading"><div><h2>Workspace snapshot</h2><p>Live records available to you</p></div></div><div className="snapshot-grid"><div><Ticket size={17}/><b>{ticketTotal}</b><span>tickets loaded</span></div><div><CalendarDays size={17}/><b>{bookingsTotal || "—"}</b><span>{isAdmin?"booking requests":"booking statuses"}</span></div><div><Package size={17}/><b>{data?.resources?.length ?? data?.stats?.activeResources ?? "—"}</b><span>shared resources</span></div></div><div className="quick-links"><Link to="/tickets"><span className="quick-link-icon violet"><Ticket size={19}/></span><span><b>Support tickets</b><small>Review and manage requests</small></span><ArrowUpRight size={17}/></Link><Link to="/resources"><span className="quick-link-icon blue"><Package size={19}/></span><span><b>Shared resources</b><small>Find rooms and equipment</small></span><ArrowUpRight size={17}/></Link><Link to={isAdmin?"/admin/bookings":"/bookings"}><span className="quick-link-icon amber"><CalendarDays size={19}/></span><span><b>{isAdmin?"Booking requests":"My bookings"}</b><small>{isAdmin?"Review reservations":"Track your reservations"}</small></span><ArrowUpRight size={17}/></Link></div></section></div>
-    {isAdmin && <><div className="analytics-grid"><Breakdown title="Ticket categories" subtitle="Tickets grouped by category" values={categories} empty="Category breakdown is not available yet." icon={Ticket}/><Breakdown title="Ticket priorities" subtitle="Tickets grouped by priority" values={priorities} empty="Priority breakdown is not available yet." icon={TrendingUp}/></div><div className="analytics-grid"><Breakdown title="Top resource utilization" subtitle="Reservations by resource" values={topResources} empty="No resource booking data is available." icon={Package}/><section className="panel reviewed-panel"><div className="panel-heading"><div><h2>Human review</h2><p>Review coverage across triage outcomes</p></div><CheckCircle2 size={18} className="panel-heading-icon"/></div><div className="reviewed-number">{stats.reviewedCount ?? "—"}<span>tickets reviewed</span></div><div className="reviewed-rate"><span>Model agreement</span><b>{stats.modelAgreementRate == null ? "—" : `${stats.modelAgreementRate}%`}</b></div>{stats.reviewedCount == null && <p className="analytics-empty">Review totals are not included in the current API response.</p>}</section></div></>}
-    <div className="dashboard-grid recent-grid"><section className="panel recent-panel"><div className="panel-heading"><div><h2>Recent tickets</h2><p>Latest requests available in your workspace</p></div><Link to="/tickets" className="panel-link">All tickets <ArrowUpRight size={15}/></Link></div>{recent.length ? <div className="recent-list">{recent.map(ticket=><Link to={`/tickets/${ticket.id}`} key={ticket.id}><span className="recent-ticket-icon"><Ticket size={17}/></span><span><b>{ticket.subject || "Untitled ticket"}</b><small>{ticket.category || "Uncategorized"} · {ticket.createdAt?new Date(ticket.createdAt).toLocaleDateString():"Date unavailable"}</small></span><span className="status-badge blue">{(ticket.status || "OPEN").replaceAll("_"," ")}</span></Link>)}</div> : <div className="analytics-empty">{query.isPending ? "Loading recent tickets…" : "No ticket records are available."}</div>}</section></div>
-    <section className="welcome-strip"><span className="welcome-mark"><CheckCircle2 size={21}/></span><div><strong>Your operations, in sync.</strong><p>Keep tickets, resources, and people moving together.</p></div><Link to="/tickets">View tickets <ArrowUpRight size={16}/></Link></section>
-  </main>;
+  const data = useDashboardStats();
+  return (
+    <main className="workspace-page">
+      <PageHeader
+        eyebrow="YOUR WORKSPACE"
+        title={`Good to see you, ${user?.name?.split(" ")[0] || "there"}`}
+        description="Here’s what’s happening across your support operations."
+      >
+        <div className="heading-date">
+          <CalendarDays size={18} />
+          {formatDate(new Date(), {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          })}
+        </div>
+      </PageHeader>
+      {data.errors.map(({ name, error, retry }) => (
+        <ErrorState
+          key={name}
+          title={`${name} could not be loaded`}
+          error={error}
+          onRetry={retry}
+        />
+      ))}
+      {data.isPending ? (
+        <Skeleton count={4} className="stat-skeleton" />
+      ) : (
+        <>
+          <div className="stats-grid">
+            <StatCard
+              label="Active resources"
+              value={data.activeResources}
+              icon={Package}
+              note="Available to your team"
+            />
+            <StatCard
+              label="Reviewed tickets"
+              value={data.stats.reviewedCount}
+              icon={CheckCircle2}
+              color="green"
+              note="Human-reviewed cases"
+            />
+            <StatCard
+              label="Model agreement"
+              value={
+                data.stats.modelAgreementRate == null
+                  ? null
+                  : `${data.stats.modelAgreementRate}%`
+              }
+              icon={TrendingUp}
+              color="blue"
+              note="Triage consistency"
+            />
+            <StatCard
+              label="Pending bookings"
+              value={data.pendingBookings}
+              icon={Clock3}
+              color="amber"
+              note="Awaiting a decision"
+            />
+          </div>
+          <ResourceOverview data={data} admin={isAdmin} />
+          <WorkspaceSnapshot data={data} admin={isAdmin} />
+          <TicketOverview data={data} admin={isAdmin} />
+        </>
+      )}
+    </main>
+  );
 }

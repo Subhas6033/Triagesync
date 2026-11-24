@@ -1,22 +1,86 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit3, MapPin, Package, Plus, Save, ToggleLeft, ToggleRight, Users, X } from "lucide-react";
-import { createResource, getResources, updateResource } from "../features/resources/resources.api";
-import queryKeys from "../lib/queryKeys";
-
-const blank = { name: "", type: "ROOM", capacity: 1, location: "", description: "" };
-const unpack = (result) => result?.data?.data ?? result?.data ?? result ?? [];
+import Pagination from "../components/common/Pagination";
+import { useRef, useState } from "react";
+import PageHeader from "../components/common/PageHeader";
+import ConfirmDialog from "../components/common/ConfirmDialog";
+import ResourceForm from "../features/resources/components/ResourceForm";
+import ResourceList from "../features/resources/components/ResourceList";
+import {
+  useResources,
+  useResourceMutations,
+} from "../features/resources/hooks/useResources";
 export default function AdminResourcesPage() {
-  const client = useQueryClient(); const [form, setForm] = useState(blank); const [editingId, setEditingId] = useState(null); const [message, setMessage] = useState("");
-  const query = useQuery({ queryKey: queryKeys.resources, queryFn: () => getResources() }); const resources = unpack(query.data);
-  const saveMutation = useMutation({ mutationFn: (payload) => editingId ? updateResource({ id: editingId, ...payload }) : createResource(payload), onSuccess: async () => { setMessage(editingId ? "Resource updated." : "Resource created."); setForm(blank); setEditingId(null); await client.invalidateQueries({ queryKey: queryKeys.resources }); } });
-  const toggleMutation = useMutation({ mutationFn: (item) => updateResource({ id: item.id, isActive: !item.isActive }), onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.resources }) });
-  function submit(event) { event.preventDefault(); setMessage(""); saveMutation.mutate({ ...form, capacity: Number(form.capacity) }); }
-  function edit(item) { setEditingId(item.id); setForm({ name: item.name || "", type: item.type || "ROOM", capacity: item.capacity || 1, location: item.location || "", description: item.description || "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  function cancelEdit() { setEditingId(null); setForm(blank); }
-  return <main className="workspace-page"><div className="page-heading"><div><p className="eyebrow">ADMINISTRATION</p><h1>Manage resources</h1><p className="page-subtitle">Create resources and keep availability information current.</p></div><span className="admin-count"><Package size={16}/>{Array.isArray(resources) ? resources.length : 0} resources</span></div>
-    {(message || saveMutation.isError || toggleMutation.isError || query.isError) && <div className={message ? "success-banner" : "inline-alert"} role={message ? "status" : "alert"}>{message || saveMutation.error?.response?.data?.message || toggleMutation.error?.response?.data?.message || query.error?.response?.data?.message || "Unable to complete this action."}</div>}
-    <section className="panel admin-form-panel"><div className="panel-heading"><div><h2>{editingId ? "Edit resource" : "Add a resource"}</h2><p>{editingId ? "Update the shared resource details." : "Make a room, space, or piece of equipment bookable."}</p></div>{editingId ? <button className="icon-button" onClick={cancelEdit} aria-label="Cancel editing"><X size={18}/></button> : <Plus size={19} className="panel-heading-icon"/>}</div><form className="admin-resource-form" onSubmit={submit}><label>Resource name<input required maxLength={100} value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="e.g. Conference room A"/></label><label>Type<select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>{["ROOM","EQUIPMENT","VEHICLE","OTHER"].map(type=><option key={type}>{type}</option>)}</select></label><label>Capacity<input required type="number" min="1" value={form.capacity} onChange={e=>setForm({...form,capacity:e.target.value})}/></label><label>Location<input required value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Building or floor"/></label><label className="form-wide">Description<textarea rows="3" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Helpful details for people booking this resource"/></label><div className="admin-form-actions"><button className="btn-primary" disabled={saveMutation.isPending}>{editingId ? <Save size={16}/> : <Plus size={16}/>} {saveMutation.isPending ? "Saving…" : editingId ? "Save resource" : "Create resource"}</button>{editingId && <button className="btn-secondary" type="button" onClick={cancelEdit}>Cancel</button>}</div></form></section>
-    <section className="admin-resource-section"><div className="section-title"><div><h2>Workspace resources</h2><p>Manage booking availability and details.</p></div></div>{query.isPending ? <div className="resource-grid">{[1,2,3].map(i=><div className="skeleton resource-skeleton" key={i}/>)}</div> : Array.isArray(resources) && resources.length ? <div className="admin-resource-grid">{resources.map(item=><article className="panel admin-resource-card" key={item.id}><div className="resource-card-head"><span className="resource-icon"><Package size={19}/></span><span className={`resource-active ${item.isActive === false ? "inactive" : ""}`}><i/>{item.isActive === false ? "Inactive" : "Active"}</span></div><span className="resource-type">{item.type || "RESOURCE"}</span><h3>{item.name}</h3><p>{item.description || "No description provided."}</p><div className="resource-meta">{item.location && <span><MapPin size={14}/>{item.location}</span>}<span><Users size={14}/>{item.capacity || "—"} capacity</span></div><div className="admin-resource-actions"><button className="text-action" onClick={()=>edit(item)}><Edit3 size={15}/>Edit details</button><button className="text-action" disabled={toggleMutation.isPending} onClick={()=>toggleMutation.mutate(item)}>{item.isActive === false ? <ToggleLeft size={17}/> : <ToggleRight size={17}/>} {item.isActive === false ? "Activate" : "Deactivate"}</button></div></article>)}</div> : <div className="panel empty-state"><span><Package size={21}/></span><b>No resources yet</b><p>Create your first resource using the form above.</p></div>}</section>
-  </main>;
+  const [page, setPage] = useState(1);
+  const query = useResources({ page });
+  if (query.isSuccess && page > query.pages) setPage(query.pages);
+  const { toggle } = useResourceMutations();
+  const [editing, setEditing] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const formAnchor = useRef(null);
+  function edit(resource) {
+    setEditing(resource);
+    formAnchor.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    formAnchor.current.focus();
+  }
+  async function confirmToggle() {
+    try {
+      await toggle.mutateAsync(selected);
+      setSelected(null);
+    } catch {
+      /* Show mutation error in dialog. */
+    }
+  }
+  return (
+    <main className="workspace-page">
+      <PageHeader
+        eyebrow="ADMINISTRATION"
+        title="Manage resources"
+        description="Create resources and keep availability information current."
+      />
+      <div ref={formAnchor} tabIndex={-1}>
+        <ResourceForm
+          key={editing?.id ?? "new"}
+          resource={editing}
+          onSaved={() => setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      </div>
+      <div className="section-title">
+        <h2>Workspace resources</h2>
+      </div>
+      <ResourceList
+        query={query}
+        resources={query.data || []}
+        onEdit={edit}
+        onToggle={(resource) => {
+          toggle.reset();
+          setSelected(resource);
+        }}
+        busy={toggle.isPending}
+      />
+      <Pagination
+        page={query.page}
+        total={query.total}
+        pageSize={query.pageSize}
+        onChange={setPage}
+      />
+      <ConfirmDialog
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        onConfirm={confirmToggle}
+        title={
+          selected?.isActive === false
+            ? "Activate this resource?"
+            : "Deactivate this resource?"
+        }
+        description={
+          selected?.isActive === false
+            ? "Members will be able to request bookings."
+            : "Members will no longer be able to request bookings for this resource."
+        }
+        confirmLabel={selected?.isActive === false ? "Activate" : "Deactivate"}
+        loading={toggle.isPending}
+        error={toggle.error}
+      />
+    </main>
+  );
 }
