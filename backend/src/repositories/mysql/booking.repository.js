@@ -55,3 +55,12 @@ export const findBookingById = (id) =>
       },
     },
   });
+
+export const lockBooking = async (tx, id) => {
+  return tx.$queryRaw`
+    SELECT id
+    FROM Booking
+    WHERE id = ${id}
+    FOR UPDATE
+  `;
+};

@@ -1,6 +1,7 @@
 import { prisma } from "../config/mysql.js";
 import ApiError from "../utils/ApiError.js";
 import { createBookingSafely } from "./concurrency.service.js";
+import { lockBooking } from "../repositories/mysql/booking.repository.js";
 
 const ACTIVE_STATUSES = ["PENDING", "APPROVED"];
 
@@ -172,6 +173,7 @@ export const getBooking = async (id) => {
 
 export const cancelBooking = async (id, userId) => {
   return prisma.$transaction(async (tx) => {
+    await lockBooking(tx, id);
     const booking = await tx.booking.findUnique({
       where: { id },
     });
@@ -204,6 +206,7 @@ export const cancelBooking = async (id, userId) => {
 
 export const approveBooking = async (id) => {
   return prisma.$transaction(async (tx) => {
+    await lockBooking(tx, id);
     const booking = await tx.booking.findUnique({
       where: { id },
     });
@@ -229,6 +232,9 @@ export const approveBooking = async (id) => {
 
 export const rejectBooking = async (id, note) => {
   return prisma.$transaction(async (tx) => {
+    // Lock the booking row before reading its current status.
+    await lockBooking(tx, id);
+
     const booking = await tx.booking.findUnique({
       where: { id },
     });
