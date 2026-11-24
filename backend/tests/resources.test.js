@@ -162,7 +162,7 @@ test("user can view an active resource but cannot view an inactive one", async (
   );
 
   assert.equal(active.status, 200);
-  assert.equal(active.data.data.id, activeResource.id);
+  assert.equal(active.data.id, activeResource.id);
 
   const inactive = await apiRequest(
     server.baseUrl,
@@ -181,7 +181,7 @@ test("admin can view an inactive resource", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.isActive, false);
+  assert.equal(response.data.isActive, false);
 });
 
 test("admin can create a resource", async () => {
@@ -196,9 +196,9 @@ test("admin can create a resource", async () => {
   );
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.data.name, "Integration Test Resource");
+  assert.equal(response.data.name, "Integration Test Resource");
 
-  createdResources.push(response.data.data);
+  createdResources.push(response.data);
 });
 
 test("regular user cannot create a resource", async () => {
@@ -227,7 +227,7 @@ test("admin can update a resource", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.capacity, 25);
+  assert.equal(response.data.capacity, 25);
 });
 
 test("admin can deactivate a resource", async () => {
@@ -242,7 +242,7 @@ test("admin can deactivate a resource", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.isActive, false);
+  assert.equal(response.data.isActive, false);
 });
 
 test("regular user cannot update a resource", async () => {
@@ -309,7 +309,7 @@ test("availability rejects missing or invalid date parameters", async () => {
   const invalid = await apiRequest(
     server.baseUrl,
     userToken,
-    `/api/resources/${activeResource.id}/availability?startTime=invalid&endTime=invalid`,
+    `/api/resources/${activeResource.id}/availability?from=invalid&to=invalid`,
   );
 
   assert.equal(invalid.status, 400);
@@ -320,11 +320,11 @@ test("availability rejects an inactive resource", async () => {
 
   const response = await apiRequest(
     server.baseUrl,
-    adminToken,
-    `/api/resources/${inactiveResource.id}/availability?startTime=${encodeURIComponent(slot.startTime)}&endTime=${encodeURIComponent(slot.endTime)}`,
+    userToken,
+    `/api/resources/${inactiveResource.id}/availability?from=${encodeURIComponent(slot.startTime)}&to=${encodeURIComponent(slot.endTime)}`,
   );
 
-  assert.equal(response.status, 409);
+  assert.equal(response.status, 404);
 });
 
 test("availability returns only overlapping active bookings", async () => {
@@ -344,15 +344,15 @@ test("availability returns only overlapping active bookings", async () => {
   const response = await apiRequest(
     server.baseUrl,
     userToken,
-    `/api/resources/${activeResource.id}/availability?startTime=${encodeURIComponent(slot.startTime)}&endTime=${encodeURIComponent(slot.endTime)}`,
+    `/api/resources/${activeResource.id}/availability?from=${encodeURIComponent(slot.startTime)}&to=${encodeURIComponent(slot.endTime)}`,
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.resourceId, activeResource.id);
-  assert.ok(Array.isArray(response.data.data.bookings));
-  assert.equal(response.data.data.bookings.length, 1);
+  assert.equal(response.data.resourceId, activeResource.id);
+  assert.ok(Array.isArray(response.data.bookings));
+  assert.equal(response.data.bookings.length, 1);
 
-  const returnedBooking = response.data.data.bookings[0];
+  const returnedBooking = response.data.bookings[0];
 
   assert.equal(returnedBooking.status, "PENDING");
   assert.ok(returnedBooking.startTime);

@@ -72,32 +72,73 @@ after(async () => {
   await mongoose.disconnect();
 });
 
-test("admin can access dashboard statistics", async () => {
+test("admin receives analytics in the required API contract", async () => {
   const response = await request("/api/admin/stats");
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.success, true);
-  assert.equal(
-    response.data.message,
-    "Admin dashboard statistics fetched successfully",
+
+  const stats = response.data;
+
+  assert.deepEqual(
+    Object.keys(stats).sort(),
+    [
+      "activeResources",
+      "bookingsByStatus",
+      "ticketStats",
+      "topResources",
+    ].sort(),
   );
 
-  const stats = response.data.data;
+  assert.equal(typeof stats.activeResources, "number");
+  assert.ok(stats.activeResources >= 0);
 
-  assert.ok(stats.generatedAt);
-  assert.ok(Number.isNaN(Date.parse(stats.generatedAt)) === false);
+  assert.deepEqual(
+    Object.keys(stats.bookingsByStatus).sort(),
+    ["APPROVED", "CANCELLED", "PENDING", "REJECTED"].sort(),
+  );
 
-  assert.equal(typeof stats.overview.totalUsers, "number");
-  assert.equal(typeof stats.overview.totalResources, "number");
-  assert.equal(typeof stats.overview.totalBookings, "number");
-  assert.equal(typeof stats.overview.totalTickets, "number");
-  assert.equal(typeof stats.overview.modelAgreementRate, "number");
+  for (const count of Object.values(stats.bookingsByStatus)) {
+    assert.equal(typeof count, "number");
+    assert.ok(count >= 0);
+  }
 
-  assert.ok(Array.isArray(stats.tickets.byCategory));
-  assert.ok(Array.isArray(stats.tickets.byPriority));
-  assert.ok(Array.isArray(stats.tickets.byStatus));
-  assert.ok(Array.isArray(stats.resources.byType));
-  assert.ok(Array.isArray(stats.bookings.byStatus));
+  assert.ok(Array.isArray(stats.topResources));
+  assert.ok(stats.topResources.length <= 3);
+
+  for (const resource of stats.topResources) {
+    assert.equal(typeof resource.id, "string");
+    assert.equal(typeof resource.name, "string");
+    assert.ok(["ROOM", "LAB", "EQUIPMENT"].includes(resource.type));
+    assert.equal(typeof resource.bookingCount, "number");
+    assert.ok(resource.bookingCount > 0);
+  }
+
+  assert.ok(stats.ticketStats);
+  assert.ok(Array.isArray(stats.ticketStats.byCategory));
+  assert.ok(Array.isArray(stats.ticketStats.byPriority));
+  assert.ok(Array.isArray(stats.ticketStats.byStatus));
+
+  assert.equal(typeof stats.ticketStats.reviewedCount, "number");
+  assert.ok(stats.ticketStats.reviewedCount >= 0);
+
+  assert.equal(typeof stats.ticketStats.modelAgreementRate, "number");
+  assert.ok(stats.ticketStats.modelAgreementRate >= 0);
+  assert.ok(stats.ticketStats.modelAgreementRate <= 100);
+
+  for (const item of stats.ticketStats.byCategory) {
+    assert.equal(typeof item.category, "string");
+    assert.equal(typeof item.count, "number");
+  }
+
+  for (const item of stats.ticketStats.byPriority) {
+    assert.equal(typeof item.priority, "string");
+    assert.equal(typeof item.count, "number");
+  }
+
+  for (const item of stats.ticketStats.byStatus) {
+    assert.equal(typeof item.status, "string");
+    assert.equal(typeof item.count, "number");
+  }
 });
 
 test("regular users cannot access admin dashboard statistics", async () => {
@@ -123,6 +164,6 @@ test("existing ticket dashboard statistics remain accessible to regular users", 
   });
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.success, true);
-  assert.ok(response.data.data);
+  assert.ok(response.data.byCategory);
+  assert.ok(response.data.modelAgreementRate >= 0);
 });

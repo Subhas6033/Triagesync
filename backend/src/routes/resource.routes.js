@@ -14,7 +14,6 @@ import { validate } from "../middleware/validate.middleware.js";
 
 import {
   createResourceSchema,
-  updateResourceSchema,
 } from "../validators/resource.validator.js";
 
 const router = Router();
@@ -39,7 +38,6 @@ router.post(
 router.patch(
   "/:id",
   authorizeRoles("ADMIN"),
-  validate(updateResourceSchema),
   updateResource,
 );
 

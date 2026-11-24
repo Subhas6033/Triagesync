@@ -13,7 +13,7 @@ export const seedUsers = async () => {
     create: {
       name: "TriageSync Admin",
       email: "admin@triagesync.test",
-      password: adminPassword,
+      passwordHash: adminPassword,
       role: "ADMIN",
     },
   });
@@ -24,7 +24,7 @@ export const seedUsers = async () => {
     create: {
       name: "TriageSync User",
       email: "user@triagesync.test",
-      password: userPassword,
+      passwordHash: userPassword,
       role: "USER",
     },
   });

@@ -82,18 +82,17 @@ test("registers a new user successfully", async () => {
   });
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.success, true);
-  assert.equal(response.data.data.user.email, email);
-  assert.equal(response.data.data.user.role, "USER");
-  assert.ok(response.data.data.token);
-  assert.equal(response.data.data.user.password, undefined);
+  assert.deepEqual(Object.keys(response.data), ["user"]);
+  assert.equal(response.data.user.email, email);
+  assert.equal(response.data.user.role, "USER");
+  assert.equal(response.data.user.passwordHash, undefined);
 
   const saved = await prisma.user.findUnique({
     where: { email },
   });
 
   assert.ok(saved);
-  assert.notEqual(saved.password, "StrongPassword@123");
+  assert.notEqual(saved.passwordHash, "StrongPassword@123");
 });
 
 test("public registration cannot create an ADMIN account", async () => {
@@ -160,7 +159,7 @@ test("registration normalizes email to lowercase", async () => {
   });
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.data.user.email, normalizedEmail);
+  assert.equal(response.data.user.email, normalizedEmail);
 });
 
 test("rejects registration with invalid input", async () => {
@@ -200,11 +199,10 @@ test("logs in with valid credentials", async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.success, true);
-  assert.equal(response.data.data.user.id, regularUser.id);
-  assert.equal(response.data.data.user.role, "USER");
-  assert.ok(response.data.data.token);
-  assert.equal(response.data.data.user.password, undefined);
+  assert.equal(response.data.user.id, regularUser.id);
+  assert.equal(response.data.user.role, "USER");
+  assert.ok(response.data.token);
+  assert.equal(response.data.user.passwordHash, undefined);
 });
 
 test("rejects login with an incorrect password", async () => {
@@ -249,9 +247,9 @@ test("returns current user with a valid USER token", async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.user.id, regularUser.id);
-  assert.equal(response.data.data.user.role, "USER");
-  assert.equal(response.data.data.user.password, undefined);
+  assert.equal(response.data.user.id, regularUser.id);
+  assert.equal(response.data.user.role, "USER");
+  assert.equal(response.data.user.passwordHash, undefined);
 });
 
 test("returns current user with a valid ADMIN token", async () => {
@@ -260,8 +258,8 @@ test("returns current user with a valid ADMIN token", async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.user.id, admin.id);
-  assert.equal(response.data.data.user.role, "ADMIN");
+  assert.equal(response.data.user.id, admin.id);
+  assert.equal(response.data.user.role, "ADMIN");
 });
 
 test("rejects request to current user without a token", async () => {

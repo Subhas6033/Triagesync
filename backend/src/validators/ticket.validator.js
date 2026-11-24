@@ -33,10 +33,18 @@ export const updateTicketSchema = z
 export const ticketListQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+    pageSize: z.coerce.number().int().min(1).max(100).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
     status: z.enum(statuses).optional(),
     category: z.enum(categories).optional(),
     priority: z.enum(priorities).optional(),
     q: z.string().trim().max(200).optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !(data.pageSize && data.limit), {
+    message: "Use either limit or pageSize, not both",
+  })
+  .transform(({ limit, pageSize, ...data }) => ({
+    ...data,
+    pageSize: pageSize ?? limit ?? 10,
+  }));

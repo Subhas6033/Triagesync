@@ -38,7 +38,7 @@ export const registerUser = async ({ name, email, password }) => {
     user = await createUser({
       name,
       email,
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       role: "USER",
     });
   } catch (error) {
@@ -54,11 +54,8 @@ export const registerUser = async ({ name, email, password }) => {
     throw error;
   }
 
-  const token = generateToken(user);
-
   return {
     user: sanitizeUser(user),
-    token,
   };
 };
 
@@ -69,7 +66,7 @@ export const loginUser = async ({ email, password }) => {
     throw new ApiError(401, "Invalid email or password", "UNAUTHENTICATED");
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.password);
+  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
 
   if (!passwordMatches) {
     throw new ApiError(401, "Invalid email or password", "UNAUTHENTICATED");

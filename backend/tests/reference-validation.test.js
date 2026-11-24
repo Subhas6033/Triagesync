@@ -97,7 +97,7 @@ test("ticket can be assigned to an existing MySQL user", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.assigneeId, assignee.id);
+  assert.equal(response.data.ticket.assigneeId, assignee.id);
 });
 
 test("ticket rejects a nonexistent assignee", async () => {
@@ -125,7 +125,7 @@ test("ticket can be unassigned using a null assigneeId", async () => {
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.assigneeId, null);
+  assert.equal(response.data.ticket.assigneeId, null);
 });
 
 test("booking accepts an existing MongoDB ticket reference", async () => {
@@ -135,7 +135,7 @@ test("booking accepts an existing MongoDB ticket reference", async () => {
   });
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.data.ticketId, ticket._id.toString());
+  assert.equal(response.data.ticketId, ticket._id.toString());
 });
 
 test("booking rejects a nonexistent MongoDB ticket reference", async () => {
@@ -157,5 +157,5 @@ test("booking still works when optional ticketId is omitted", async () => {
   });
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.data.ticketId, null);
+  assert.equal(response.data.ticketId, null);
 });

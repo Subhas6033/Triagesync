@@ -37,31 +37,46 @@ export const countTickets = (filter) => {
 export const getTicketStats = () => {
   return Ticket.aggregate([
     {
-      $group: {
-        _id: null,
-        total: { $sum: 1 },
-        open: {
-          $sum: { $cond: [{ $eq: ["$status", "OPEN"] }, 1, 0] },
-        },
-        inProgress: {
-          $sum: {
-            $cond: [{ $eq: ["$status", "IN_PROGRESS"] }, 1, 0],
+      $facet: {
+        byCategory: [{ $group: { _id: "$category", count: { $sum: 1 } } }],
+        byPriority: [{ $group: { _id: "$priority", count: { $sum: 1 } } }],
+        byStatus: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+        reviewMetrics: [
+          {
+            $group: {
+              _id: null,
+              reviewedCount: { $sum: { $cond: ["$isReviewed", 1, 0] } },
+              agreementCount: {
+                $sum: {
+                  $cond: [
+                    { $and: ["$isReviewed", { $eq: ["$category", "$autoCategory"] }] },
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
           },
-        },
-        resolved: {
-          $sum: { $cond: [{ $eq: ["$status", "RESOLVED"] }, 1, 0] },
-        },
-        urgent: {
-          $sum: { $cond: [{ $eq: ["$priority", "URGENT"] }, 1, 0] },
-        },
-        reviewed: {
-          $sum: { $cond: ["$isReviewed", 1, 0] },
-        },
-        modelAgreement: {
-          $sum: {
-            $cond: [{ $eq: ["$category", "$autoCategory"] }, 1, 0],
-          },
-        },
+        ],
+      },
+    },
+    {
+      $project: {
+        byCategory: 1,
+        byPriority: 1,
+        byStatus: 1,
+        reviewedCount: { $ifNull: [{ $arrayElemAt: ["$reviewMetrics.reviewedCount", 0] }, 0] },
+        agreementCount: { $ifNull: [{ $arrayElemAt: ["$reviewMetrics.agreementCount", 0] }, 0] },
+      },
+    },
+    {
+      $project: {
+        byCategory: 1,
+        byPriority: 1,
+        byStatus: 1,
+        reviewedCount: 1,
+        agreementCount: 1,
+        _id: 0,
       },
     },
   ]);

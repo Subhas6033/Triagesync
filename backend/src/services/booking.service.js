@@ -128,17 +128,17 @@ export const listMyBookings = async (userId, filters) => {
 };
 
 export const listAllBookings = async (filters) => {
-  const { page, pageSize, status, resourceId, startDate, endDate } = filters;
+  const { page, pageSize, status, resourceId, from, to } = filters;
 
   const where = {
     ...(status ? { status } : {}),
     ...(resourceId ? { resourceId } : {}),
-    ...(startDate && endDate
+    ...(from && to
       ? {
-          startTime: {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
-          },
+          AND: [
+            { startTime: { lt: new Date(to) } },
+            { endTime: { gt: new Date(from) } },
+          ],
         }
       : {}),
   };
@@ -281,7 +281,7 @@ export const rejectBooking = async (id, note) => {
       where: { id },
       data: {
         status: "REJECTED",
-        rejectionNote: note,
+        decisionNote: note,
       },
     });
   });

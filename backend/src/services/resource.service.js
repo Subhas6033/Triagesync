@@ -33,12 +33,11 @@ export const listResources = async (filters, isAdmin = false) => {
     search,
     type,
     minCapacity,
-    includeInactive,
   } = filters;
 
   const where = {};
 
-  if (!(isAdmin && includeInactive === "true")) {
+  if (!isAdmin) {
     where.isActive = true;
   }
 
@@ -89,6 +88,7 @@ export const addResource = async (data) => {
     return await createResource({
       ...data,
       description: data.description ?? null,
+      location: data.location ?? "",
       isActive: data.isActive ?? true,
     });
   } catch (error) {
@@ -106,15 +106,15 @@ export const editResource = async (id, data) => {
   }
 };
 
-export const getResourceAvailability = async (id, startDate, endDate) => {
+export const getResourceAvailability = async (id, from, to, isAdmin = false) => {
   const resource = await getResource(id);
 
-  if (!resource.isActive) {
-    throw new ApiError(409, "This resource is currently inactive", "CONFLICT");
+  if (!resource.isActive && !isAdmin) {
+    throw new ApiError(404, "Resource not found", "NOT_FOUND");
   }
 
-  const startTime = new Date(startDate);
-  const endTime = new Date(endDate);
+  const startTime = new Date(from);
+  const endTime = new Date(to);
 
   if (
     Number.isNaN(startTime.getTime()) ||
@@ -128,12 +128,16 @@ export const getResourceAvailability = async (id, startDate, endDate) => {
     );
   }
 
+  if (endTime - startTime > 7 * 24 * 60 * 60 * 1000) {
+    throw new ApiError(400, "Availability range cannot exceed 7 days", "VALIDATION_ERROR");
+  }
+
   const bookings = await findResourceBookings(id, startTime, endTime);
 
   return {
     resourceId: id,
-    startTime,
-    endTime,
+    from: startTime,
+    to: endTime,
     bookings,
   };
 };

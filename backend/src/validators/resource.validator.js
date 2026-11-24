@@ -4,22 +4,22 @@ const resourceTypes = ["ROOM", "LAB", "EQUIPMENT"];
 
 export const createResourceSchema = z
   .object({
-    name: z.string().trim().min(2).max(120),
+    name: z.string().trim().min(3).max(60),
     description: z.string().trim().max(300).nullable().optional(),
     type: z.enum(resourceTypes),
     capacity: z.coerce.number().int().min(1).max(500),
-    location: z.string().trim().min(2).max(200),
+    location: z.string().trim().max(191).optional(),
     isActive: z.boolean().optional(),
   })
   .strict();
 
 export const updateResourceSchema = z
   .object({
-    name: z.string().trim().min(2).max(120).optional(),
+    name: z.string().trim().min(3).max(60).optional(),
     description: z.string().trim().max(300).nullable().optional(),
     type: z.enum(resourceTypes).optional(),
     capacity: z.coerce.number().int().min(1).max(500).optional(),
-    location: z.string().trim().min(2).max(200).optional(),
+    location: z.string().trim().max(191).optional(),
     isActive: z.boolean().optional(),
   })
   .strict()

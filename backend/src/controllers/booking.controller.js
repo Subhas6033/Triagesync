@@ -1,5 +1,4 @@
 import ApiError from "../utils/ApiError.js";
-import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 import {
@@ -12,7 +11,10 @@ import {
   rejectBooking,
 } from "../services/booking.service.js";
 
-import { bookingListQuerySchema } from "../validators/booking.validator.js";
+import {
+  bookingListQuerySchema,
+  rejectBookingSchema,
+} from "../validators/booking.validator.js";
 
 const parseBookingFilters = (query) => {
   const parsed = bookingListQuerySchema.safeParse(query);
@@ -31,31 +33,21 @@ const parseBookingFilters = (query) => {
 export const createBooking = asyncHandler(async (req, res) => {
   const booking = await createBookingService(req.user.id, req.body);
 
-  res
-    .status(201)
-    .json(new ApiResponse(201, booking, "Booking created successfully"));
+  res.status(201).json(booking);
 });
 
 export const getMyBookings = asyncHandler(async (req, res) => {
   const filters = parseBookingFilters(req.query);
   const result = await listMyBookings(req.user.id, filters);
 
-  res.status(200).json({
-    success: true,
-    message: "Your bookings fetched successfully",
-    ...result,
-  });
+  res.status(200).json(result);
 });
 
 export const getAllBookings = asyncHandler(async (req, res) => {
   const filters = parseBookingFilters(req.query);
   const result = await listAllBookings(filters);
 
-  res.status(200).json({
-    success: true,
-    message: "Bookings fetched successfully",
-    ...result,
-  });
+  res.status(200).json(result);
 });
 
 export const getBookingById = asyncHandler(async (req, res) => {
@@ -65,31 +57,30 @@ export const getBookingById = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You cannot view this booking", "FORBIDDEN");
   }
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, booking, "Booking fetched successfully"));
+  res.status(200).json(booking);
 });
 
 export const cancelMyBooking = asyncHandler(async (req, res) => {
   const booking = await cancelBooking(req.params.id, req.user.id);
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, booking, "Booking cancelled successfully"));
+  res.status(200).json(booking);
 });
 
 export const approveBookingByAdmin = asyncHandler(async (req, res) => {
   const booking = await approveBooking(req.params.id);
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, booking, "Booking approved successfully"));
+  res.status(200).json(booking);
 });
 
 export const rejectBookingByAdmin = asyncHandler(async (req, res) => {
-  const booking = await rejectBooking(req.params.id, req.body.note);
+  await getBooking(req.params.id);
+  const parsed = rejectBookingSchema.safeParse(req.body);
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, booking, "Booking rejected successfully"));
+  if (!parsed.success) {
+    throw new ApiError(400, "Request validation failed", "VALIDATION_ERROR");
+  }
+
+  const booking = await rejectBooking(req.params.id, parsed.data.note);
+
+  res.status(200).json(booking);
 });

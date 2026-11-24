@@ -38,7 +38,7 @@ export const createTestUser = async (role = "USER") => {
     data: {
       name: `Booking Test ${suffix}`,
       email: `booking-${suffix}@triagesync.test`,
-      password: await bcrypt.hash("TestPassword@123", 10),
+      passwordHash: await bcrypt.hash("TestPassword@123", 10),
       role,
     },
   });

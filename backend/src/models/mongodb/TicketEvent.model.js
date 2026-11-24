@@ -11,6 +11,7 @@ const ticketEventSchema = new mongoose.Schema(
 
     field: {
       type: String,
+      enum: ["category", "priority", "status", "assigneeId"],
       required: true,
     },
 

@@ -1,0 +1,2 @@
+ALTER TABLE `Resource`
+ALTER COLUMN `location` SET DEFAULT '';

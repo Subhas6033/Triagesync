@@ -16,7 +16,6 @@ import {
 
 import {
   createBookingSchema,
-  rejectBookingSchema,
 } from "../validators/booking.validator.js";
 
 const router = Router();
@@ -34,7 +33,6 @@ router.patch("/:id/approve", authorizeRoles("ADMIN"), approveBookingByAdmin);
 router.patch(
   "/:id/reject",
   authorizeRoles("ADMIN"),
-  validate(rejectBookingSchema),
   rejectBookingByAdmin,
 );
 

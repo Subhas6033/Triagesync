@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import { prisma } from "../config/mysql.js";
 
 import ApiError from "../utils/ApiError.js";
-import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 import {
@@ -20,15 +19,33 @@ import {
 
 import { importTickets } from "../services/ticketImport.service.js";
 
-import { ticketListQuerySchema } from "../validators/ticket.validator.js";
+import {
+  ticketListQuerySchema,
+  updateTicketSchema,
+} from "../validators/ticket.validator.js";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const serializeTicket = (ticket) => {
+  if (!ticket) return ticket;
+  const value =
+    typeof ticket.toObject === "function" ? ticket.toObject() : { ...ticket };
+  value.id = String(value._id ?? value.id);
+  delete value._id;
+  return value;
+};
+
+const serializeEvent = (event) => {
+  const value = { ...event, id: String(event._id ?? event.id) };
+  delete value._id;
+  return value;
+};
 
 // POST /api/tickets/import
 export const importTicketData = asyncHandler(async (req, res) => {
   const result = await importTickets(req.body.tickets);
 
-  res.status(200).json(new ApiResponse(200, result, "Ticket import completed"));
+  res.status(200).json(result);
 });
 
 // GET /api/tickets
@@ -64,9 +81,7 @@ export const getTickets = asyncHandler(async (req, res) => {
   ]);
 
   res.status(200).json({
-    success: true,
-    message: "Tickets fetched successfully",
-    data: tickets,
+    data: tickets.map(serializeTicket),
     page,
     pageSize,
     total,
@@ -88,9 +103,10 @@ export const getTicketById = asyncHandler(async (req, res) => {
 
   const events = await findEventsByTicketId(ticket._id);
 
-  res.status(200).json(
-    new ApiResponse(200, { ticket, events }, "Ticket fetched successfully"),
-  );
+  res.status(200).json({
+    ticket: serializeTicket(ticket),
+    events: events.map(serializeEvent),
+  });
 });
 
 // PATCH /api/tickets/:id
@@ -100,16 +116,7 @@ export const updateTicket = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Ticket not found", "NOT_FOUND");
   }
 
-  if (req.body.assigneeId != null) {
-    const assignee = await prisma.user.findUnique({
-      where: { id: req.body.assigneeId },
-      select: { id: true },
-    });
-
-    if (!assignee) {
-      throw new ApiError(404, "Assignee not found", "NOT_FOUND");
-    }
-  }
+  const parsedBody = updateTicketSchema.safeParse(req.body);
 
   const actor = req.get("X-Agent")?.trim() || req.user.email;
   const session = await mongoose.startSession();
@@ -122,6 +129,23 @@ export const updateTicket = asyncHandler(async (req, res) => {
 
       if (!ticket) {
         throw new ApiError(404, "Ticket not found", "NOT_FOUND");
+      }
+
+      if (!parsedBody.success) {
+        throw new ApiError(400, "Request validation failed", "VALIDATION_ERROR");
+      }
+
+      req.body = parsedBody.data;
+
+      if (req.body.assigneeId != null) {
+        const assignee = await prisma.user.findUnique({
+          where: { id: req.body.assigneeId },
+          select: { id: true },
+        });
+
+        if (!assignee) {
+          throw new ApiError(404, "Assignee not found", "NOT_FOUND");
+        }
       }
 
       const changes = [];
@@ -144,7 +168,7 @@ export const updateTicket = asyncHandler(async (req, res) => {
       }
 
       if (changes.length === 0) {
-        updatedTicket = ticket;
+        updatedTicket = serializeTicket(ticket);
         return;
       }
 
@@ -168,47 +192,43 @@ export const updateTicket = asyncHandler(async (req, res) => {
       await saveTicket(ticket, { session });
       await createTicketEvents(changes, { session });
 
-      updatedTicket = ticket;
+      updatedTicket = serializeTicket(ticket);
     });
   } finally {
     await session.endSession();
   }
 
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      updatedTicket,
-      "Ticket updated successfully",
-    ),
-  );
+  const events = await findEventsByTicketId(req.params.id);
+  res.status(200).json({
+    ticket: updatedTicket,
+    events: events.map(serializeEvent),
+  });
 });
 
 // GET /api/stats
 export const getTicketDashboardStats = asyncHandler(async (req, res) => {
   const [result] = await getTicketStats();
 
-  const stats = result || {
-    total: 0,
-    open: 0,
-    inProgress: 0,
-    resolved: 0,
-    urgent: 0,
-    reviewed: 0,
-    modelAgreement: 0,
-  };
-
-  const modelAgreementRate = stats.total
-    ? Number(((stats.modelAgreement / stats.total) * 100).toFixed(2))
+  const stats = result || {};
+  const reviewedCount = stats.reviewedCount ?? 0;
+  const modelAgreementRate = reviewedCount
+    ? Number(((stats.agreementCount / reviewedCount) * 100).toFixed(2))
     : 0;
 
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        ...stats,
-        modelAgreementRate,
-      },
-      "Ticket statistics fetched successfully",
-    ),
-  );
+  res.status(200).json({
+    byCategory: (stats.byCategory ?? []).map(({ _id, count }) => ({
+      category: _id,
+      count,
+    })),
+    byPriority: (stats.byPriority ?? []).map(({ _id, count }) => ({
+      priority: _id,
+      count,
+    })),
+    byStatus: (stats.byStatus ?? []).map(({ _id, count }) => ({
+      status: _id,
+      count,
+    })),
+    reviewedCount,
+    modelAgreementRate,
+  });
 });

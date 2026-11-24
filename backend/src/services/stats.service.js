@@ -1,73 +1,104 @@
 import { prisma } from "../config/mysql.js";
 import Ticket from "../models/mongodb/Ticket.model.js";
 
+const BOOKING_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "CANCELLED",
+];
+
 export const getAdminDashboardStats = async () => {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  // MySQL metrics
   const [
-    totalUsers,
-    totalResources,
     activeResources,
-    resourcesByType,
-    bookingsByStatus,
-    upcomingBookings,
-    bookingsCreatedLast30Days,
+    bookingStatusGroups,
+    resourceBookingGroups,
   ] = await Promise.all([
-    prisma.user.count(),
-
-    prisma.resource.count(),
-
     prisma.resource.count({
       where: { isActive: true },
     }),
 
-    prisma.resource.groupBy({
-      by: ["type"],
-      _count: { _all: true },
-    }),
-
     prisma.booking.groupBy({
       by: ["status"],
-      _count: { _all: true },
-    }),
-
-    prisma.booking.count({
-      where: {
-        startTime: { gt: now },
-        status: { in: ["PENDING", "APPROVED"] },
+      _count: {
+        _all: true,
       },
     }),
 
-    prisma.booking.count({
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
+    prisma.booking.groupBy({
+      by: ["resourceId"],
+      _count: {
+        _all: true,
       },
     }),
   ]);
 
-  // MongoDB ticket metrics
+  // Include every booking status, even when its count is zero.
+  const bookingsByStatus = Object.fromEntries(
+    BOOKING_STATUSES.map((status) => [status, 0]),
+  );
+
+  for (const item of bookingStatusGroups) {
+    bookingsByStatus[item.status] = item._count._all;
+  }
+
+  // Rank resources by total bookings and retain the top three.
+  const rankedResourceGroups = resourceBookingGroups
+    .sort((a, b) => {
+      const countDifference = b._count._all - a._count._all;
+
+      if (countDifference !== 0) {
+        return countDifference;
+      }
+
+      return a.resourceId.localeCompare(b.resourceId);
+    })
+    .slice(0, 3);
+
+  const resourceIds = rankedResourceGroups.map(
+    (item) => item.resourceId,
+  );
+
+  const resources = resourceIds.length
+    ? await prisma.resource.findMany({
+        where: {
+          id: {
+            in: resourceIds,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      })
+    : [];
+
+  const resourcesById = new Map(
+    resources.map((resource) => [resource.id, resource]),
+  );
+
+  const topResources = rankedResourceGroups
+    .map((item) => {
+      const resource = resourcesById.get(item.resourceId);
+
+      if (!resource) {
+        return null;
+      }
+
+      return {
+        id: resource.id,
+        name: resource.name,
+        type: resource.type,
+        bookingCount: item._count._all,
+      };
+    })
+    .filter(Boolean);
+
+  // Aggregate ticket metrics in MongoDB.
   const [ticketMetrics] = await Ticket.aggregate([
     {
       $facet: {
-        overview: [
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              reviewed: {
-                $sum: { $cond: ["$isReviewed", 1, 0] },
-              },
-              modelAgreement: {
-                $sum: {
-                  $cond: [{ $eq: ["$category", "$autoCategory"] }, 1, 0],
-                },
-              },
-            },
-          },
-        ],
-
         byCategory: [
           {
             $group: {
@@ -97,70 +128,78 @@ export const getAdminDashboardStats = async () => {
           },
           { $sort: { _id: 1 } },
         ],
+
+        reviewMetrics: [
+          {
+            $group: {
+              _id: null,
+              reviewedCount: {
+                $sum: {
+                  $cond: ["$isReviewed", 1, 0],
+                },
+              },
+              agreementCount: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        "$isReviewed",
+                        { $eq: ["$category", "$autoCategory"] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ],
       },
     },
   ]);
 
-  const ticketOverview = ticketMetrics?.overview?.[0] ?? {
-    total: 0,
-    reviewed: 0,
-    modelAgreement: 0,
+  const reviewMetrics = ticketMetrics?.reviewMetrics?.[0] ?? {
+    reviewedCount: 0,
+    agreementCount: 0,
   };
 
-  const bookingStatusCounts = Object.fromEntries(
-    bookingsByStatus.map((item) => [item.status, item._count._all]),
-  );
+  const reviewedCount = reviewMetrics.reviewedCount;
 
-  const totalBookings = bookingsByStatus.reduce(
-    (total, item) => total + item._count._all,
-    0,
-  );
-
-  const totalTickets = ticketOverview.total;
-
-  const modelAgreementRate = totalTickets
-    ? Number(((ticketOverview.modelAgreement / totalTickets) * 100).toFixed(2))
+  const modelAgreementRate = reviewedCount
+    ? Number(
+        (
+          (reviewMetrics.agreementCount / reviewedCount) *
+          100
+        ).toFixed(2),
+      )
     : 0;
 
   return {
-    generatedAt: now.toISOString(),
+    activeResources,
 
-    overview: {
-      totalUsers,
-      totalResources,
-      activeResources,
-      inactiveResources: totalResources - activeResources,
-      totalBookings,
-      pendingBookings: bookingStatusCounts.PENDING ?? 0,
-      approvedBookings: bookingStatusCounts.APPROVED ?? 0,
-      rejectedBookings: bookingStatusCounts.REJECTED ?? 0,
-      cancelledBookings: bookingStatusCounts.CANCELLED ?? 0,
-      upcomingBookings,
-      bookingsCreatedLast30Days,
-      totalTickets,
-      reviewedTickets: ticketOverview.reviewed,
-      unreviewedTickets: totalTickets - ticketOverview.reviewed,
+    bookingsByStatus,
+
+    topResources,
+
+    ticketStats: {
+      byCategory: (ticketMetrics?.byCategory ?? []).map((item) => ({
+        category: item._id,
+        count: item.count,
+      })),
+
+      byPriority: (ticketMetrics?.byPriority ?? []).map((item) => ({
+        priority: item._id,
+        count: item.count,
+      })),
+
+      byStatus: (ticketMetrics?.byStatus ?? []).map((item) => ({
+        status: item._id,
+        count: item.count,
+      })),
+
+      reviewedCount,
       modelAgreementRate,
-    },
-
-    tickets: {
-      byCategory: ticketMetrics?.byCategory ?? [],
-      byPriority: ticketMetrics?.byPriority ?? [],
-      byStatus: ticketMetrics?.byStatus ?? [],
-    },
-
-    resources: {
-      byType: resourcesByType.map((item) => ({
-        type: item.type,
-        count: item._count._all,
-      })),
-    },
-
-    bookings: {
-      byStatus: bookingsByStatus.map((item) => ({
-        status: item.status,
-        count: item._count._all,
-      })),
     },
   };
 };

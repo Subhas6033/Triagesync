@@ -88,10 +88,10 @@ test("creates a valid booking with PENDING status", async () => {
   const response = await postBooking(ownerToken, activeResource.id, slot);
 
   assert.equal(response.status, 201);
-  assert.equal(response.data.data.status, "PENDING");
+  assert.equal(response.data.status, "PENDING");
 
   const saved = await prisma.booking.findUnique({
-    where: { id: response.data.data.id },
+    where: { id: response.data.id },
   });
 
   assert.ok(saved);
@@ -233,7 +233,7 @@ test("users cannot view or cancel another user's booking", async () => {
 
   assert.equal(created.status, 201);
 
-  const bookingId = created.data.data.id;
+  const bookingId = created.data.id;
 
   const getResponse = await apiRequest(
     server.baseUrl,
@@ -274,12 +274,12 @@ test("admin can approve a future pending booking", async () => {
   const response = await apiRequest(
     server.baseUrl,
     adminToken,
-    `/api/bookings/${created.data.data.id}/approve`,
+    `/api/bookings/${created.data.id}/approve`,
     { method: "PATCH" },
   );
 
   assert.equal(response.status, 200);
-  assert.equal(response.data.data.status, "APPROVED");
+  assert.equal(response.data.status, "APPROVED");
 });
 
 test("owner can cancel an approved future booking", async () => {
@@ -289,7 +289,7 @@ test("owner can cancel an approved future booking", async () => {
 
   assert.equal(created.status, 201);
 
-  const bookingId = created.data.data.id;
+  const bookingId = created.data.id;
 
   const approved = await apiRequest(
     server.baseUrl,
@@ -308,7 +308,7 @@ test("owner can cancel an approved future booking", async () => {
   );
 
   assert.equal(cancelled.status, 200);
-  assert.equal(cancelled.data.data.status, "CANCELLED");
+  assert.equal(cancelled.data.status, "CANCELLED");
 });
 
 test("admin rejection requires a note", async () => {
@@ -318,7 +318,7 @@ test("admin rejection requires a note", async () => {
 
   assert.equal(created.status, 201);
 
-  const bookingId = created.data.data.id;
+  const bookingId = created.data.id;
 
   const invalid = await apiRequest(
     server.baseUrl,
@@ -345,7 +345,11 @@ test("admin rejection requires a note", async () => {
   );
 
   assert.equal(rejected.status, 200);
-  assert.equal(rejected.data.data.status, "REJECTED");
+  assert.equal(rejected.data.status, "REJECTED");
+  assert.equal(
+    rejected.data.decisionNote,
+    "Resource unavailable for this request",
+  );
 });
 
 test("regular users cannot access the admin booking list", async () => {
@@ -379,7 +383,7 @@ test("concurrent admin approval and rejection allow only one transition", async 
 
   assert.equal(created.status, 201);
 
-  const bookingId = created.data.data.id;
+  const bookingId = created.data.id;
 
   const [approved, rejected] = await Promise.all([
     apiRequest(

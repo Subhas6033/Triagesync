@@ -16,23 +16,23 @@ export const bookingListQuerySchema = z
     pageSize: z.coerce.number().int().min(1).max(100).default(10),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "CANCELLED"]).optional(),
     resourceId: z.string().trim().min(1).optional(),
-    startDate: z.iso.datetime().optional(),
-    endDate: z.iso.datetime().optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
   })
   .strict()
   .refine(
-    (data) => Boolean(data.startDate) === Boolean(data.endDate),
+    (data) => Boolean(data.from) === Boolean(data.to),
     {
-      message: "Both startDate and endDate must be provided together",
+      message: "Both from and to must be provided together",
     },
   )
   .refine(
     (data) =>
-      !data.startDate ||
-      !data.endDate ||
-      new Date(data.startDate) <= new Date(data.endDate),
+      !data.from ||
+      !data.to ||
+      new Date(data.from) < new Date(data.to),
     {
-      message: "startDate must be before or equal to endDate",
+      message: "from must be before to",
     },
   );
 
