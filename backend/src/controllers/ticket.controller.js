@@ -52,7 +52,6 @@ export const getTickets = asyncHandler(async (req, res) => {
 
   if (q) {
     const search = new RegExp(escapeRegex(q), "i");
-
     filter.$or = [{ subject: search }, { body: search }];
   }
 
@@ -88,91 +87,88 @@ export const getTicketById = asyncHandler(async (req, res) => {
 
   const events = await findEventsByTicketId(ticket._id);
 
-  res
-    .status(200)
-    .json(
-      new ApiResponse(200, { ticket, events }, "Ticket fetched successfully"),
-    );
+  res.status(200).json(
+    new ApiResponse(200, { ticket, events }, "Ticket fetched successfully"),
+  );
 });
 
 // PATCH /api/tickets/:id
+// Ticket changes and their audit events are committed in one MongoDB transaction.
 export const updateTicket = asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     throw new ApiError(404, "Ticket not found", "NOT_FOUND");
   }
 
-  const ticket = await findTicketById(req.params.id);
+  const actor = req.get("X-Agent")?.trim() || req.user.email;
+  const session = await mongoose.startSession();
 
-  if (!ticket) {
-    throw new ApiError(404, "Ticket not found", "NOT_FOUND");
-  }
+  let updatedTicket;
 
-  const changes = [];
-  const actorId = req.user.id;
-  const updates = req.body;
+  try {
+    await session.withTransaction(async () => {
+      const ticket = await findTicketById(req.params.id, { session });
 
-  for (const field of ["category", "priority", "status", "assigneeId"]) {
-    if (
-      Object.prototype.hasOwnProperty.call(updates, field) &&
-      ticket[field] !== updates[field]
-    ) {
-      changes.push({
-        field,
-        oldValue: ticket[field] ?? null,
-        newValue: updates[field] ?? null,
-        actorId,
-      });
+      if (!ticket) {
+        throw new ApiError(404, "Ticket not found", "NOT_FOUND");
+      }
 
-      ticket[field] = updates[field];
-    }
-  }
+      const changes = [];
 
-  if (changes.length === 0) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, ticket, "No changes were necessary"));
-  }
+      for (const field of ["category", "priority", "status", "assigneeId"]) {
+        if (
+          Object.prototype.hasOwnProperty.call(req.body, field) &&
+          ticket[field] !== req.body[field]
+        ) {
+          changes.push({
+            ticketId: ticket._id,
+            field,
+            oldValue: ticket[field] ?? null,
+            newValue: req.body[field] ?? null,
+            actor,
+          });
 
-  const categoryChanged = changes.some((change) => change.field === "category");
+          ticket[field] = req.body[field];
+        }
+      }
 
-  const statusChangedFromOpen = changes.some(
-    (change) => change.field === "status" && change.oldValue === "OPEN",
-  );
+      if (changes.length === 0) {
+        updatedTicket = ticket;
+        return;
+      }
 
-  if (categoryChanged && !ticket.isHumanOverride) {
-    changes.push({
-      field: "isHumanOverride",
-      oldValue: false,
-      newValue: true,
-      actorId,
+      const categoryChanged = changes.some(
+        (change) => change.field === "category",
+      );
+
+      const statusChangedFromOpen = changes.some(
+        (change) =>
+          change.field === "status" && change.oldValue === "OPEN",
+      );
+
+      if (categoryChanged) {
+        ticket.isHumanOverride = true;
+      }
+
+      if (categoryChanged || statusChangedFromOpen) {
+        ticket.isReviewed = true;
+      }
+
+      await saveTicket(ticket, { session });
+      await createTicketEvents(changes, { session });
+
+      updatedTicket = ticket;
     });
-
-    ticket.isHumanOverride = true;
+  } finally {
+    await session.endSession();
   }
 
-  if ((categoryChanged || statusChangedFromOpen) && !ticket.isReviewed) {
-    changes.push({
-      field: "isReviewed",
-      oldValue: false,
-      newValue: true,
-      actorId,
-    });
-
-    ticket.isReviewed = true;
-  }
-
-  await ticket.save();
-
-  await createTicketEvents(
-    changes.map((change) => ({
-      ticketId: ticket._id,
-      ...change,
-    })),
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      updatedTicket,
+      "Ticket updated successfully",
+    ),
   );
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, ticket, "Ticket updated successfully"));
 });
 
 // GET /api/stats

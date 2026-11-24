@@ -8,12 +8,18 @@ export const findTicketByExternalId = (externalId) => {
   return Ticket.findOne({ externalId });
 };
 
-export const findTicketById = (id) => {
-  return Ticket.findById(id);
+export const findTicketById = (id, options = {}) => {
+  const query = Ticket.findById(id);
+
+  if (options.session) {
+    query.session(options.session);
+  }
+
+  return query;
 };
 
-export const saveTicket = (ticket) => {
-  return ticket.save();
+export const saveTicket = (ticket, options = {}) => {
+  return ticket.save(options);
 };
 
 export const findTickets = (filter, skip, limit) => {

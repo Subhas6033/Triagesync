@@ -5,15 +5,17 @@ export const findResources = (where, skip, take) =>
     where,
     skip,
     take,
-    orderBy: { createdAt: "desc" },
+    orderBy: { name: "asc" },
   });
 
-export const countResources = (where) => prisma.resource.count({ where });
+export const countResources = (where) =>
+  prisma.resource.count({ where });
 
 export const findResourceById = (id) =>
   prisma.resource.findUnique({ where: { id } });
 
-export const createResource = (data) => prisma.resource.create({ data });
+export const createResource = (data) =>
+  prisma.resource.create({ data });
 
 export const updateResource = (id, data) =>
   prisma.resource.update({

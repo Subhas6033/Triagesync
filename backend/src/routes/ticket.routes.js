@@ -8,7 +8,6 @@ import {
 } from "../controllers/ticket.controller.js";
 
 import { authenticate } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/role.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
 
 import {
@@ -18,16 +17,13 @@ import {
 
 const router = Router();
 
-// All ticket endpoints require an authenticated admin.
-router.use(authenticate, authorizeRoles("ADMIN"));
+// All ticket operations require authentication.
+// Both USER and ADMIN roles can access ticket operations.
+router.use(authenticate);
 
-// Keep /import before /:id.
 router.post("/import", validate(importTicketsSchema), importTicketData);
-
 router.get("/", getTickets);
-
 router.get("/:id", getTicketById);
-
 router.patch("/:id", validate(updateTicketSchema), updateTicket);
 
 export default router;

@@ -9,12 +9,38 @@ import {
   findResourceBookings,
 } from "../repositories/mysql/resource.repository.js";
 
-export const listResources = async (filters, isAdmin = false) => {
-  const { page, pageSize, q, type, minCapacity, includeInactive } = filters;
+const handleResourceWriteError = (error) => {
+  if (error.code === "P2002") {
+    throw new ApiError(
+      409,
+      "A resource with this name already exists",
+      "CONFLICT",
+    );
+  }
 
-  const where = {
-    isActive: !(isAdmin && includeInactive === "true"),
-  };
+  if (error.code === "P2025") {
+    throw new ApiError(404, "Resource not found", "NOT_FOUND");
+  }
+
+  throw error;
+};
+
+export const listResources = async (filters, isAdmin = false) => {
+  const {
+    page,
+    pageSize,
+    q,
+    search,
+    type,
+    minCapacity,
+    includeInactive,
+  } = filters;
+
+  const where = {};
+
+  if (!(isAdmin && includeInactive === "true")) {
+    where.isActive = true;
+  }
 
   if (type) where.type = type;
 
@@ -22,11 +48,13 @@ export const listResources = async (filters, isAdmin = false) => {
     where.capacity = { gte: minCapacity };
   }
 
-  if (q) {
+  const searchTerm = search ?? q;
+
+  if (searchTerm) {
     where.OR = [
-      { name: { contains: q } },
-      { description: { contains: q } },
-      { location: { contains: q } },
+      { name: { contains: searchTerm } },
+      { description: { contains: searchTerm } },
+      { location: { contains: searchTerm } },
     ];
   }
 
@@ -57,16 +85,25 @@ export const getResource = async (id) => {
 };
 
 export const addResource = async (data) => {
-  return createResource({
-    ...data,
-    isActive: data.isActive ?? true,
-  });
+  try {
+    return await createResource({
+      ...data,
+      description: data.description ?? null,
+      isActive: data.isActive ?? true,
+    });
+  } catch (error) {
+    handleResourceWriteError(error);
+  }
 };
 
 export const editResource = async (id, data) => {
   await getResource(id);
 
-  return updateResource(id, data);
+  try {
+    return await updateResource(id, data);
+  } catch (error) {
+    handleResourceWriteError(error);
+  }
 };
 
 export const getResourceAvailability = async (id, startDate, endDate) => {

@@ -24,9 +24,10 @@ const ticketEventSchema = new mongoose.Schema(
       default: null,
     },
 
-    actorId: {
+    actor: {
       type: String,
       required: true,
+      trim: true,
     },
   },
   {

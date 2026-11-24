@@ -1,16 +1,14 @@
 import { z } from "zod";
 
 const categories = ["BILLING", "LOGIN", "DELIVERY", "BUG", "FEATURE_REQUEST"];
-
 const priorities = ["URGENT", "HIGH", "MEDIUM", "LOW"];
-
 const statuses = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 
 const ticketInputSchema = z
   .object({
     externalId: z.string().trim().min(1).max(100),
-    subject: z.string().trim().min(1).max(300),
-    body: z.string().min(1).max(10000),
+    subject: z.string().trim().min(3).max(150),
+    body: z.string().trim().min(5).max(2000),
   })
   .strict();
 

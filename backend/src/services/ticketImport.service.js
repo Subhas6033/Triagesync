@@ -6,15 +6,14 @@ import {
 
 import { classifyTicket } from "./classifier.service.js";
 
-// Update an existing ticket without losing a human category override.
 const updateExistingTicket = async (ticket, input) => {
   const prediction = classifyTicket(input.subject, input.body);
 
-  // Always keep imported subject and body up to date.
+  // Always refresh the imported source text.
   ticket.subject = input.subject;
   ticket.body = input.body;
 
-  // Reclassify only when an agent has not overridden the category.
+  // Preserve manual decisions. autoCategory is never modified here.
   if (!ticket.isHumanOverride) {
     ticket.category = prediction.category;
     ticket.priority = prediction.priority;
@@ -25,12 +24,23 @@ const updateExistingTicket = async (ticket, input) => {
   return ticket;
 };
 
+const toImportResult = (ticket) => ({
+  id: ticket._id,
+  externalId: ticket.externalId,
+  subject: ticket.subject,
+  autoCategory: ticket.autoCategory,
+  category: ticket.category,
+  priority: ticket.priority,
+  isHumanOverride: ticket.isHumanOverride,
+});
+
 export const importTickets = async (tickets) => {
-  const results = {
+  const result = {
     total: tickets.length,
-    created: 0,
-    updated: 0,
-    failed: 0,
+    importedCount: 0,
+    updatedCount: 0,
+    skippedOverrideCount: 0,
+    failedCount: 0,
     tickets: [],
   };
 
@@ -39,8 +49,15 @@ export const importTickets = async (tickets) => {
       let ticket = await findTicketByExternalId(input.externalId);
 
       if (ticket) {
+        const hadHumanOverride = ticket.isHumanOverride === true;
+
         ticket = await updateExistingTicket(ticket, input);
-        results.updated += 1;
+
+        result.updatedCount += 1;
+
+        if (hadHumanOverride) {
+          result.skippedOverrideCount += 1;
+        }
       } else {
         const prediction = classifyTicket(input.subject, input.body);
 
@@ -53,11 +70,12 @@ export const importTickets = async (tickets) => {
             category: prediction.category,
             priority: prediction.priority,
             isHumanOverride: false,
+            isReviewed: false,
           });
 
-          results.created += 1;
+          result.importedCount += 1;
         } catch (error) {
-          // Another simultaneous import may have created this externalId.
+          // Handle a concurrent import of the same external ID.
           if (error.code !== 11000) {
             throw error;
           }
@@ -68,28 +86,28 @@ export const importTickets = async (tickets) => {
             throw error;
           }
 
+          const hadHumanOverride = ticket.isHumanOverride === true;
+
           ticket = await updateExistingTicket(ticket, input);
-          results.updated += 1;
+
+          result.updatedCount += 1;
+
+          if (hadHumanOverride) {
+            result.skippedOverrideCount += 1;
+          }
         }
       }
 
-      results.tickets.push({
-        id: ticket._id,
-        externalId: ticket.externalId,
-        subject: ticket.subject,
-        autoCategory: ticket.autoCategory,
-        category: ticket.category,
-        priority: ticket.priority,
-        isHumanOverride: ticket.isHumanOverride,
-      });
+      result.tickets.push(toImportResult(ticket));
     } catch (error) {
-      results.failed += 1;
-      results.tickets.push({
+      result.failedCount += 1;
+
+      result.tickets.push({
         externalId: input.externalId,
         error: error.message,
       });
     }
   }
 
-  return results;
+  return result;
 };

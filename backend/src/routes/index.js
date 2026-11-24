@@ -16,12 +16,7 @@ router.use("/auth", authRoutes);
 
 router.use("/tickets", ticketRoutes);
 
-router.get(
-  "/stats",
-  authenticate,
-  authorizeRoles("ADMIN"),
-  getTicketDashboardStats,
-);
+router.get("/stats", authenticate, getTicketDashboardStats);
 
 router.use("/resources", resourceRoutes);
 router.use("/bookings", bookingRoutes);

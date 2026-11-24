@@ -160,13 +160,13 @@ test("TicketEvent model validation tests", async (t) => {
       field: "category",
       oldValue: "BUG",
       newValue: "BILLING",
-      actorId: "admin-test-id",
+      actor: "admin-test-id",
     });
 
     await assert.doesNotReject(() => event.validate());
   });
 
-  await t.test("Rejects missing actorId", async () => {
+  await t.test("Rejects missing actor", async () => {
     const event = new TicketEvent({
       ticketId: new mongoose.Types.ObjectId(),
       field: "category",
@@ -182,7 +182,7 @@ test("TicketEvent model validation tests", async (t) => {
       field: "category",
       oldValue: "BUG",
       newValue: "BILLING",
-      actorId: "admin-test-id",
+      actor: "admin-test-id",
     });
 
     await assert.rejects(() => event.validate());

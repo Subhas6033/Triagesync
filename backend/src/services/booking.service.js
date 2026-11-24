@@ -113,9 +113,20 @@ export const listMyBookings = async (userId, filters) => {
 };
 
 export const listAllBookings = async (filters) => {
-  const { page, pageSize, status } = filters;
+  const { page, pageSize, status, resourceId, startDate, endDate } = filters;
 
-  const where = status ? { status } : {};
+  const where = {
+    ...(status ? { status } : {}),
+    ...(resourceId ? { resourceId } : {}),
+    ...(startDate && endDate
+      ? {
+          startTime: {
+            gte: new Date(startDate),
+            lte: new Date(endDate),
+          },
+        }
+      : {}),
+  };
 
   const [data, total] = await Promise.all([
     prisma.booking.findMany({
