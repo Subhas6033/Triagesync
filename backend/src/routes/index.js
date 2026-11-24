@@ -7,6 +7,7 @@ import { authenticate } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/role.middleware.js";
 
 import { getTicketDashboardStats } from "../controllers/ticket.controller.js";
+import resourceRoutes from "./resource.routes.js";
 
 const router = Router();
 
@@ -20,5 +21,7 @@ router.get(
   authorizeRoles("ADMIN"),
   getTicketDashboardStats,
 );
+
+router.use("/resources", resourceRoutes);
 
 export default router;

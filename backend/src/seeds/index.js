@@ -1,13 +1,14 @@
 import { prisma } from "../config/mysql.js";
-import { seedUsers } from "./mysql.seed.js";
+import { seedUsers, seedResources } from "./mysql.seed.js";
 
 const runSeed = async () => {
   try {
     await prisma.$connect();
 
     await seedUsers();
+    await seedResources();
 
-    console.log("Database seeding completed");
+    console.log("Database seeding completed successfully");
   } catch (error) {
     console.error("Database seeding failed:", error);
     process.exitCode = 1;
