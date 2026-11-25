@@ -1,0 +1,92 @@
+
+name: Auto Deploy Triagesync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: triagesync-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy Triagesync to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -p "${VPS_PORT:-22}" \
+            "$VPS_USERNAME@$VPS_HOST" 'bash -se' << 'EOF'
+
+            set -e
+
+            echo "Loading Node.js..."
+            export NVM_DIR="$HOME/.nvm"
+            . "$NVM_DIR/nvm.sh"
+            nvm use 22
+
+            echo "Fetching latest code..."
+            cd /var/www/Triagesync
+            git pull --ff-only origin main
+
+            echo "Installing backend dependencies..."
+            cd /var/www/Triagesync/backend
+            npm ci --include=dev
+
+            echo "Generating Prisma client..."
+            npx prisma generate
+
+            echo "Installing frontend dependencies..."
+            cd /var/www/Triagesync/frontend
+            npm ci --include=dev
+
+            echo "Building frontend..."
+            VITE_API_URL=/api npm run build
+
+            echo "Applying database migrations..."
+            cd /var/www/Triagesync/backend
+            npx prisma migrate deploy
+
+            echo "Restarting backend..."
+            pm2 restart triagesync-backend --update-env
+
+            echo "Checking backend..."
+            sleep 5
+            curl --silent --show-error \
+              --max-time 10 \
+              http://127.0.0.1:5001/ > /dev/null
+
+            pm2 save
+
+            echo "Triagesync deployed successfully!"
+
+          EOF
