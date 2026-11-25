@@ -1,588 +1,135 @@
 # TriageSync
 
-**Smart Support Ticket Triage & Resource Slot Booking System**
+TriageSync is a support triage and shared resource-slot booking application for the ENGN-F1 Full Stack assessment. It imports and classifies support tickets, supports agent review with an audit history, and lets users request 30-minute-grid bookings for rooms, labs, and equipment.
 
-TriageSync is a full-stack web application designed to simplify customer support ticket management and resource booking.
+## 1. Overview
 
-The application automatically classifies support tickets based on their content, assigns priority levels, allows administrators to review and manage tickets, and provides a resource booking system with availability and conflict prevention.
+- Ticket feed import is keyed by `externalId`; automated category and priority rules are documented below. Human category overrides are represented separately from `autoCategory`.
+- Agents can search and filter tickets and inspect ticket events. Ticket text is rendered as text by the frontend.
+- Users can browse resources, check availability, book slots, and manage their own bookings. Administrators manage resources and booking decisions.
+- Roles are `USER` and `ADMIN`. Public registration creates USER accounts; the seed script creates the assessment ADMIN.
 
----
+## 2. Live links
 
-## 1. Project Overview
+- Frontend: **Not deployed / URL not recorded**
+- Backend: **Not deployed / URL not recorded**
+- Public repository: **Add the assessment repository URL**
 
-TriageSync provides two primary functionalities:
+Replace these entries with the verified HTTPS URLs before submission. The checked-in environment examples currently describe local development.
 
-### Smart Ticket Triage
+## 3. Seeded credentials
 
-- Automatically classify incoming support tickets.
-- Assign priority levels based on ticket content.
-- Allow administrators to review and override automatic classifications.
-- Maintain an audit history of ticket changes.
-- Search and filter tickets.
-- Prevent duplicate tickets during repeated imports.
+| Role | Email | Password |
+|---|---|---|
+| ADMIN | `admin@triagesync.test` | `Admin@123` |
+| USER | `user@triagesync.test` | `User@123` |
 
-### Resource Slot Booking
+These are assessment seed credentials. The seed inserts six resources (two per type, including one inactive resource) and twenty initial tickets, including a raw HTML/script payload and reviewed tickets. Do not use the sample passwords for other services.
 
-- Browse available rooms, laboratories, and equipment.
-- Check resource availability.
-- Request resource bookings.
-- Prevent overlapping bookings.
-- Allow administrators to approve or reject booking requests.
-- Allow users to view and cancel their own bookings.
+## 4. Tech stack
 
-### User Roles
+- Frontend: React, Vite, React Router, TanStack Query, Axios, Tailwind CSS.
+- Backend: Node.js ES modules, Express, Zod, JWT, bcrypt, Helmet.
+- Persistence: MySQL 8 through Prisma for users, resources, and bookings; MongoDB through Mongoose for tickets and ticket events.
+- The two databases do not share transactions or foreign keys. Cross-database references must be checked by application services.
 
-| Role  | Permissions                                                                                       |
-| ----- | ------------------------------------------------------------------------------------------------- |
-| USER  | Register, log in, browse resources, create bookings, view and cancel own bookings                 |
-| ADMIN | Manage tickets, review classifications, manage resources, approve/reject bookings, view analytics |
-
-Public registration is restricted to the USER role. ADMIN accounts are created through database seeding.
-
----
-
-## 2. Technology Stack
-
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-- React Router
-- TanStack Query
-- Axios
-- React Hook Form
-- Zod
-- Lucide React
-- Recharts
-
-### Backend
-
-- Node.js
-- Express.js
-- JavaScript ES Modules
-- MongoDB with Mongoose
-- MySQL 8 with Prisma ORM
-- JWT Authentication
-- bcrypt Password Hashing
-- Zod Validation
-- Helmet
-- CORS
-- Morgan
-
-### Database Architecture
-
-TriageSync uses a hybrid database architecture.
-
-**MySQL + Prisma**
-
-- Users
-- Resources
-- Bookings
-- Booking relationships
-
-**MongoDB + Mongoose**
-
-- Support Tickets
-- Ticket Events
-- Ticket Audit History
-
-Express services coordinate operations between the two databases.
-
-MySQL and MongoDB do not share cross-database foreign keys. References between their records are validated by backend services.
-
----
-
-## 3. Project Structure
+## 5. Folder structure
 
 ```text
-Triagesync/
-│
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── layouts/
-│   │   ├── hooks/
-│   │   ├── services/
-│   │   ├── context/
-│   │   ├── routes/
-│   │   └── main.jsx
-│   └── package.json
-│
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── models/
-│   │   │   └── mongodb/
-│   │   ├── prisma/
-│   │   │   ├── migrations/
-│   │   │   └── schema.prisma
-│   │   ├── repositories/
-│   │   │   ├── mongodb/
-│   │   │   └── mysql/
-│   │   ├── routes/
-│   │   ├── seeds/
-│   │   ├── services/
-│   │   ├── utils/
-│   │   ├── validators/
-│   │   ├── app.js
-│   │   └── server.js
-│   │
-│   ├── tests/
-│   ├── package.json
-│   └── .env.example
-│
-├── README.md
-├── SOLUTION.md
-├── AI_USAGE.md
-├── .gitignore
-└── .env.example
+backend/
+  src/{config,controllers,middleware,models,prisma,repositories,routes,seeds,services,validators}/
+  tests/
+frontend/
+  src/{components,context,features,hooks,layouts,pages,routes,utils}/
+  tests/
+README.md
+SOLUTION.md
+AI_USAGE.md
 ```
 
----
+The project is a monorepo with separate `frontend/` and `backend/` applications. The repository's present files should be treated as authoritative if this abbreviated tree changes.
 
-## 4. Prerequisites
+## 6. Local setup and idempotent seed command
 
-Install the following before running the project:
+Requirements: Node.js, npm, MySQL, and MongoDB. Configure the variables in `backend/.env.example` in `backend/.env`; configure the frontend API base URL using `frontend/.env.example` in `frontend/.env`. Keep real credentials out of Git.
 
-- Node.js (LTS)
-- npm
-- MySQL 8
-- MongoDB or MongoDB Atlas
-- Git
-
-Verify your installation:
-
-```bash
-node --version
-npm --version
-git --version
-```
-
----
-
-## 5. Environment Configuration
-
-Create a `.env` file inside the backend directory.
-
-Location:
-
-```text
-backend/.env
-```
-
-Example configuration:
-
-```env
-PORT=5000
-NODE_ENV=development
-
-DATABASE_URL="mysql://USERNAME:PASSWORD@localhost:3306/triagesync"
-
-MONGODB_URI="mongodb+srv://USERNAME:PASSWORD@CLUSTER/triagesync"
-
-JWT_SECRET="replace_with_a_random_secret_at_least_32_characters"
-JWT_EXPIRES_IN="24h"
-
-CLIENT_URL="http://localhost:5173"
-```
-
-Replace the database credentials and connection strings with your own values.
-
-**Important:**
-
-- Never commit `.env` files.
-- Never expose database passwords or JWT secrets.
-- Keep `.env.example` in Git with placeholder values.
-
----
-
-## 6. Installation and Local Setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/YOUR_USERNAME/engnf1-fullstack-YOUR_GITHUB_USERNAME.git
-
-cd Triagesync
-```
-
-### Backend Setup
-
-```bash
+```sh
 cd backend
-
 npm install
-```
-
-Generate the Prisma client:
-
-```bash
-npx prisma generate
-```
-
-Run database migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-Seed the databases:
-
-```bash
+npm run prisma:generate
+npm run prisma:migrate
 npm run seed
-```
-
-Start the backend development server:
-
-```bash
 npm run dev
 ```
 
-Backend default URL:
+In a second terminal:
 
-```text
-http://localhost:5000
-```
-
-### Frontend Setup
-
-Open another terminal:
-
-```bash
+```sh
 cd frontend
-
 npm install
-
 npm run dev
 ```
 
-Frontend default URL:
-
-```text
-http://localhost:5173
-```
-
----
-
-## 7. Seeded Test Accounts
-
-The development database includes the following test accounts.
-
-| Role  | Email                 | Password  |
-| ----- | --------------------- | --------- |
-| ADMIN | admin@triagesync.test | Admin@123 |
-| USER  | user@triagesync.test  | User@123  |
-
-These are development and assessment credentials only.
-
-Change passwords and use secure environment configuration before production deployment.
-
----
-
-## 8. Database Design
-
-### MySQL Models
-
-**User**
-
-- id
-- name
-- email
-- password
-- role
-- createdAt
-- updatedAt
-
-**Resource**
-
-- id
-- name
-- description
-- type
-- capacity
-- location
-- isActive
-- createdAt
-- updatedAt
-
-**Booking**
-
-- id
-- userId
-- resourceId
-- startTime
-- endTime
-- purpose
-- status
-- ticketId
-- rejectionNote
-- createdAt
-- updatedAt
-
-### MongoDB Models
-
-**Ticket**
-
-- externalId
-- subject
-- body
-- autoCategory
-- category
-- isHumanOverride
-- priority
-- status
-- assigneeId
-- isReviewed
-- createdAt
-- updatedAt
-
-**TicketEvent**
-
-- ticketId
-- field
-- oldValue
-- newValue
-- actorId
-- createdAt
-
-### Ticket Categories
-
-- BILLING
-- LOGIN
-- DELIVERY
-- BUG
-- FEATURE_REQUEST
-
-### Ticket Priorities
-
-- URGENT
-- HIGH
-- MEDIUM
-- LOW
-
-### Booking Statuses
-
-- PENDING
-- APPROVED
-- REJECTED
-- CANCELLED
-
----
-
-## 9. API Documentation
-
-Base URL:
-
-```text
-http://localhost:5000/api
-```
-
-### Authentication
-
-| Method | Endpoint       | Description                    |
-| ------ | -------------- | ------------------------------ |
-| POST   | /auth/register | Register a user                |
-| POST   | /auth/login    | Authenticate user              |
-| GET    | /auth/me       | Get current authenticated user |
-
-### Tickets
-
-| Method | Endpoint        | Description             |
-| ------ | --------------- | ----------------------- |
-| POST   | /tickets/import | Import support tickets  |
-| GET    | /tickets        | List and filter tickets |
-| GET    | /tickets/:id    | Get ticket details      |
-| PATCH  | /tickets/:id    | Update ticket           |
-| GET    | /stats          | Get ticket statistics   |
-
-### Resources
-
-| Method | Endpoint                    | Description             |
-| ------ | --------------------------- | ----------------------- |
-| GET    | /resources                  | List resources          |
-| GET    | /resources/:id              | Get resource details    |
-| POST   | /resources                  | Create resource (ADMIN) |
-| PATCH  | /resources/:id              | Update resource (ADMIN) |
-| GET    | /resources/:id/availability | Check availability      |
-
-### Bookings
-
-| Method | Endpoint              | Description               |
-| ------ | --------------------- | ------------------------- |
-| POST   | /bookings             | Create booking            |
-| GET    | /bookings/mine        | Get own bookings          |
-| GET    | /bookings/:id         | Get booking details       |
-| GET    | /bookings             | List all bookings (ADMIN) |
-| PATCH  | /bookings/:id/cancel  | Cancel own booking        |
-| PATCH  | /bookings/:id/approve | Approve booking (ADMIN)   |
-| PATCH  | /bookings/:id/reject  | Reject booking (ADMIN)    |
-
-### Admin
-
-| Method | Endpoint     | Description         |
-| ------ | ------------ | ------------------- |
-| GET    | /admin/stats | Get admin analytics |
-
-All protected endpoints require a JWT access token:
-
-```http
-Authorization: Bearer YOUR_JWT_TOKEN
-```
-
----
-
-## 10. Automatic Ticket Classification
-
-TriageSync uses a rule-based classification engine.
-
-### Category Rules
-
-| Keywords                                       | Category        |
-| ---------------------------------------------- | --------------- |
-| refund, invoice, charge, payment               | BILLING         |
-| password, 2fa, sign in, locked out, login      | LOGIN           |
-| package, arrived, shipping, tracking, delivery | DELIVERY        |
-| crash, error, 500, exception, broken           | BUG             |
-| Other requests                                 | FEATURE_REQUEST |
-
-### Priority Rules
-
-| Keywords                            | Priority |
-| ----------------------------------- | -------- |
-| urgent, production down, locked out | URGENT   |
-| error, refund, not arrived          | HIGH     |
-| Other requests                      | MEDIUM   |
-
-Human category overrides must be preserved during subsequent ticket imports.
-
-The original automatic classification is stored separately in `autoCategory`.
-
----
-
-## 11. Booking Validation and Concurrency
-
-The booking system is designed to prevent conflicting reservations.
-
-Validation rules include:
-
-- Booking duration must be between 30 and 240 minutes.
-- Booking times must use valid 30-minute intervals.
-- Start time must be in the future.
-- Bookings cannot be more than 30 days ahead.
-- Only active resources can be booked.
-- Users can have at most three future PENDING or APPROVED bookings.
-- Overlapping PENDING and APPROVED bookings are not allowed.
-- Back-to-back bookings are allowed.
-
-The backend uses MySQL transactions and resource-row locking to protect booking creation against concurrent requests.
-
----
-
-## 12. Testing
-
-Backend tests use Node.js's built-in test runner.
-
-Run all backend tests:
-
-```bash
-cd backend
-
-npm test
-```
-
-Current test coverage includes:
-
-- Authentication
-- Booking operations
-- Booking concurrency
-- Resource operations
-- Ticket classification
-- Ticket model validation
-- Ticket event model validation
-
-Latest recorded test result:
-
-```text
-Tests: 37
-Passed: 37
-Failed: 0
-```
-
-This result reflects the test run during development. Run the suite again after making changes.
-
----
-
-## 13. Deployment
-
-The application is designed for deployment using:
-
-| Component | Suggested platform                        |
-| --------- | ----------------------------------------- |
-| Frontend  | Vercel                                    |
-| Backend   | Render                                    |
-| MySQL     | Railway or another managed MySQL provider |
-| MongoDB   | MongoDB Atlas                             |
-
-Production deployment requires:
-
-- Configured production environment variables.
-- Persistent database instances.
-- Successful database migrations.
-- Seeded initial data.
-- HTTPS frontend and backend URLs.
-- Correct CORS configuration.
-- Verified authentication and authorization.
-- Successful production build and API tests.
-
-### Live Application
-
-Frontend: TO BE ADDED
-
-Backend: TO BE ADDED
-
-GitHub Repository: TO BE ADDED
-
----
-
-## 14. Known Limitations
-
-This section should be updated as development progresses.
-
-- Ticket import and audit workflows require integration testing against MongoDB.
-- Frontend functionality and production deployment links must be verified before submission.
-- Hybrid database operations require application-level coordination because MySQL and MongoDB do not share a transaction.
-- Automated classification currently uses keyword-based rules rather than a trained machine learning model.
-
----
-
-## 15. Future Improvements
-
-Potential future enhancements include:
-
-- Machine-learning-based ticket classification.
-- Automated ticket assignment.
-- Email notifications for booking decisions.
-- Advanced analytics dashboards.
-- Ticket response-time tracking.
-- Resource utilization reports.
-- More comprehensive automated integration testing.
-
----
-
-## 16. Author
-
-**Project:** TriageSync
-
-**Developer:** Subhas Mondal
-
----
-
-## License
-
-This project was developed as part of an individual full-stack development assessment.
+The backend listens on port 5000 by default and Vite on port 5173. Run `npm run seed` from `backend/` to seed both databases. User seeding uses upserts, resources are matched by name before insert/update, and ticket records use `externalId` with upsert semantics, so repeated runs do not create duplicate seed records. The seed command and sample values are defined in `backend/src/seeds/`.
+
+## 7. Database schema
+
+The assessment's logical entities and API names are:
+
+- **User (MySQL):** `id`, `name`, `email`, `passwordHash`, `role`, `createdAt`. Password hashes are not returned by the API.
+- **Resource (MySQL):** `id`, `name`, `type`, `capacity`, `description`, `isActive`, `createdAt`. The implementation schema also has a `location` field.
+- **Booking (MySQL):** `id`, `resourceId`, `userId`, `ticketId`, `startTime`, `endTime`, `purpose`, `status`, `decisionNote`, `createdAt`.
+- **Ticket (MongoDB):** `id`, `externalId`, `subject`, `body`, `autoCategory`, `category`, `isHumanOverride`, `priority`, `status`, `assigneeId`, `isReviewed`, `createdAt`, `updatedAt`.
+- **TicketEvent (MongoDB):** `id`, `ticketId`, `field`, `oldValue`, `newValue`, `actor`, `createdAt`.
+
+Ticket categories: `BILLING`, `BUG`, `FEATURE_REQUEST`, `LOGIN`, `DELIVERY`. Priorities: `LOW`, `MEDIUM`, `HIGH`, `URGENT`. Ticket statuses: `OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`. Resource types: `ROOM`, `LAB`, `EQUIPMENT`. Booking statuses: `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED`.
+
+The Prisma schema and migrations are under `backend/src/prisma/`; Mongoose models are under `backend/src/models/mongodb/`.
+
+## 8. API summary
+
+Base path: `/api`. Protected routes use `Authorization: Bearer <token>`.
+
+| Method | Path | Purpose / access |
+|---|---|---|
+| POST | `/auth/register` | Register USER |
+| POST | `/auth/login` | Log in |
+| GET | `/auth/me` | Current user |
+| POST / GET | `/tickets/import`, `/tickets` | Import feed / list and filter tickets |
+| GET / PATCH | `/tickets/:id` | Ticket detail / agent update |
+| GET | `/stats` | Ticket statistics |
+| GET | `/resources` | List resources |
+| GET / POST | `/resources/:id`, `/resources` | Resource detail / ADMIN create |
+| PATCH | `/resources/:id` | ADMIN resource update |
+| GET | `/resources/:id/availability` | Resource slot availability |
+| POST | `/bookings` | Request a booking |
+| GET | `/bookings/mine` | List own bookings |
+| GET | `/bookings/:id` | Owner or ADMIN booking detail |
+| GET | `/bookings` | ADMIN booking list |
+| PATCH | `/bookings/:id/cancel` | Owner cancellation |
+| PATCH | `/bookings/:id/approve` | ADMIN approval |
+| PATCH | `/bookings/:id/reject` | ADMIN rejection with note |
+| GET | `/admin/stats` | ADMIN analytics |
+
+List endpoints are paginated. See `SOLUTION.md` and the route/controller code for implementation details and any assessment-contract gaps that remain.
+
+## 9. Completed features checklist
+
+Status here describes repository evidence, not a claim that the deployed assessment has passed external evaluation.
+
+- [x] Seed scripts provide assessment accounts, six resources, and twenty tickets; seed operations are repeatable.
+- [x] Ticket import, deterministic category/priority classification, and separate original/current category fields are implemented.
+- [x] Ticket filters, ticket event model, resource and booking routes, and booking concurrency service are present.
+- [x] Frontend includes login/register, ticket queue/detail, resource browsing/detail, and booking/admin pages.
+- [ ] Verify all 21 API routes against the assessment contract and deployed database.
+- [ ] Record actual before/after latency for `GET /api/tickets?limit=100` on 500+ tickets in `SOLUTION.md`.
+- [ ] Verify optimistic update rollback, XSS rendering, responsive widths, and ten-request booking race behavior in the deployed app.
+- [ ] Add live HTTPS URLs and verify the deployment remains available for the required period.
+
+## 10. Known limitations
+
+- No live deployment URLs or measured latency results are recorded in this repository documentation yet.
+- MySQL and MongoDB operations cannot be committed atomically together; cross-store consistency relies on application logic.
+- The current database schema includes implementation fields beyond the brief's minimum fields (for example resource `location`). Confirm all serialized API fields and error/check ordering against Section 7 before submission.
+- The rule-based classifier is deterministic keyword matching, not a trained model.
+- `SOLUTION.md` identifies the remaining measurement and implementation evidence to record rather than inventing results.
